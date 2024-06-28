@@ -175,13 +175,11 @@ def conv_confluent := ∀a b, r⁼ a b → ∃c, r∗ a c ∧ r∗ b c
 
 /-- The reflexive-transitive closure of a relation is a subset of the equivalence closure. -/
 lemma lift_rt_to_eqv : ∀a b, r∗ a b → r⁼ a b := by
-  intro a b hrs
-  induction hrs
-  · exact EqvGen.refl a
-  · apply EqvGen.trans
-    · assumption
-    · apply EqvGen.rel
-      assumption
+  intro _ _ hrs
+  induction hrs using ReflTransGen.trans_induction_on with
+  | ih₁ a => exact EqvGen.refl a
+  | ih₂ h => exact EqvGen.rel _ _ h
+  | ih₃ _ _ he₁ he₂ => exact EqvGen.trans _ _ _ he₁ he₂
 
 theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
   constructor
