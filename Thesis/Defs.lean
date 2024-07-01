@@ -79,7 +79,8 @@ end ars_def
 section rel_properties
 
 local postfix:max (priority := high) "∗" => ReflTransGen
-local postfix:max (priority := high) "⁼" => EqvGen
+local postfix:max (priority := high) "⇔" => EqvGen
+local postfix:max (priority := high) "⁼" => ReflGen
 
 variable (r s : α → α → Prop)
 
@@ -148,12 +149,12 @@ lemma confluent_iff_star_dp: confluent r ↔ diamond_property r∗ := by
   rfl
 
 /--
-`one_side_confluent` is equivalent to `confluent` (see `one_side_confluent_iff_confluent`)
+`semi_confluent` is equivalent to `confluent` (see `semi_confluent_iff_confluent`)
 but is sometimes easier to prove as you can simply use induction on the length of `r∗ a b`.
 -/
-def one_side_confluent := ∀a b c, r∗ a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
+def semi_confluent := ∀a b c, r∗ a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
 
-theorem one_side_confluent_iff_confluent: one_side_confluent r ↔ confluent r := by
+theorem semi_confluent_iff_confluent: semi_confluent r ↔ confluent r := by
   constructor
   · intro hosc
     rintro a b c ⟨hab, hac⟩
@@ -165,16 +166,14 @@ theorem one_side_confluent_iff_confluent: one_side_confluent r ↔ confluent r :
         have ⟨g, hg⟩: ∃g, r∗ d g ∧ r∗ f g := hosc e d f ⟨hd.right, hef⟩
         have hbg: r∗ b g := ReflTransGen.trans hd.left hg.left
         exact ⟨g, ⟨hbg, hg.right⟩⟩
-  · intro hc
-    rintro a b c ⟨hab, hac⟩
-    have ⟨d, hd⟩ := hc a b c ⟨hab, ReflTransGen.single hac⟩
-    use d
+  · rintro hc a b c ⟨hab, hac⟩
+    exact hc _ _ _ ⟨hab, ReflTransGen.single hac⟩
 
 /-- "Conversion confluent" (made-up term); equivalent to confluence (see `conv_confluent_iff_confluent`). -/
-def conv_confluent := ∀a b, r⁼ a b → ∃c, r∗ a c ∧ r∗ b c
+def conv_confluent := ∀a b, r⇔ a b → ∃c, r∗ a c ∧ r∗ b c
 
 /-- The reflexive-transitive closure of a relation is a subset of the equivalence closure. -/
-lemma lift_rt_to_eqv : ∀a b, r∗ a b → r⁼ a b := by
+lemma lift_rt_to_eqv : ∀a b, r∗ a b → r⇔ a b := by
   intro _ _ hrs
   induction hrs using ReflTransGen.trans_induction_on with
   | ih₁ a => exact EqvGen.refl a
