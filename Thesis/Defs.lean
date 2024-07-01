@@ -202,6 +202,43 @@ theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
         exact ⟨e, ⟨ReflTransGen.trans hc.left he.left,
                    ReflTransGen.trans hd.right he.right⟩⟩
 
+/-- Strong confluence, as defined by Huet (1980). -/
+def strongly_confluent := ∀a b c, r a b ∧ r a c → ∃d, r⁼ b d ∧ r∗ c d
+
+-- The proof of strong confluence → confluence follows the proof sketch
+-- given by Huet (1980). This auxiliary def is used as an intermediate step,
+-- because it provides a strong enough induction hypothesis.
+def sc_aux := ∀a b c, r⁼ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r⁼ c d
+
+lemma strongly_confluent_imp_sc_aux : strongly_confluent r → sc_aux r := by
+  intro hsc
+  rintro a b c ⟨hab, hac⟩
+  rcases hab with _ | hab
+  case refl => use c
+  induction hac with
+  | refl => use b, ReflTransGen.refl, ReflGen.single hab
+  | tail _ hef ih =>
+      rename_i e f _
+      obtain ⟨d, ⟨hbd, hed⟩⟩ := ih
+      rcases hed with _ | hed
+      · use f, ReflTransGen.tail hbd hef, ReflGen.refl
+      · have ⟨g, ⟨hfg, hdg⟩⟩ := hsc _ _ _ ⟨hef, hed⟩
+        use g, ReflTransGen.trans hbd hdg, hfg
+
+lemma sc_aux_imp_semi_confluent : sc_aux r → semi_confluent r := by
+  rintro haux a b c ⟨hab, hbc⟩
+  obtain ⟨d, hd⟩ := haux _ _ _ ⟨ReflGen.single hbc, hab⟩
+  use d, ?_, hd.left
+  cases hd.right
+  · exact ReflTransGen.refl
+  · apply ReflTransGen.single; assumption
+
+theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r := by
+  intro h
+  apply (semi_confluent_iff_confluent r).mp
+  apply sc_aux_imp_semi_confluent
+  apply strongly_confluent_imp_sc_aux
+  exact h
 
 end rel_properties
 
