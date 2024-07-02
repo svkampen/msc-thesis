@@ -308,6 +308,34 @@ theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r 
   fun h ↦ (semi_confluent_iff_confluent _).mp (sc_aux_imp_semi_confluent _ (strongly_confluent_imp_sc_aux _ h))
 
 
+section ex1_3_1
+
+variable (hrs: Subrelation r s) (hsr: Subrelation s r∗) (hdp: diamond_property s)
+
+lemma aux {a b: α}: r∗ a b ↔ s∗ a b := by
+  constructor
+  · intro hr
+    induction hr with
+    | refl => exact ReflTransGen.refl
+    | tail _ hr₂ ih => exact ReflTransGen.tail ih (hrs hr₂)
+  · intro hs
+    induction hs with
+    | refl => exact ReflTransGen.refl
+    | tail _ hs₂ ih => exact ReflTransGen.trans ih (hsr hs₂)
+
+example: confluent r := by
+  intro a b c
+  have aux' := @aux _ r s hrs hsr
+  rw [aux', aux']
+  intro h
+  have hcs := diamond_property_imp_confluent _ hdp
+  have ⟨d, hd⟩ := hcs _ _ _ h
+  use d
+  rw [aux', aux']
+  exact hd
+
+end ex1_3_1
+
 end rel_properties
 
 
