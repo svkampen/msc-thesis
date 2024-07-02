@@ -307,6 +307,125 @@ lemma sc_aux_imp_semi_confluent : sc_aux r → semi_confluent r := by
 theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r :=
   fun h ↦ (semi_confluent_iff_confluent _).mp (sc_aux_imp_semi_confluent _ (strongly_confluent_imp_sc_aux _ h))
 
+/-- An element a is a normal form in r if there are no b s.t. r a b. -/
+@[reducible] def normal_form (a: α) := ¬∃b, r a b
+
+@[reducible] def weakly_normalizing' (a: α) : Prop :=
+  ∃b, normal_form r b ∧ r∗ a b
+
+/-- A relation `r` is weakly normalizing if each element can reduce to a normal form. -/
+@[reducible] def weakly_normalizing : Prop :=
+  ∀a, ∃b, (normal_form r b ∧ r∗ a b)
+
+@[reducible] def strongly_normalizing' (a: α) : Prop :=
+  ¬∃(f: ℕ → α), f 0 = a ∧ ∀n, r (f n) (f (n + 1))
+
+/-- A relation `r` is strongly normalizing if there are no infinite reduction sequences. -/
+@[reducible] def strongly_normalizing : Prop :=
+  ¬∃(f: ℕ → α), ∀n, r (f n) (f (n + 1))
+
+-- For example, a reflexive relation is never strongly normalizing.
+example [inst: Inhabited α]: ¬(strongly_normalizing r⁼) := by
+  push_neg
+  intro h
+  obtain ⟨a⟩ := inst
+  have ⟨_, hn⟩ := h (fun _ ↦ a)
+  apply hn ReflGen.refl
+
+/-- A relation with the diamond property has no non-trivial normal forms. -/
+lemma diamond_property_imp_no_nf (hdp: diamond_property r): ∀b, (∃a, r a b) → ¬normal_form r b := by
+  simp
+  intro b a hab
+  exact Exists.imp (by tauto) (hdp _ _ _ ⟨hab, hab⟩)
+
+section sn_wf
+
+/-- If a relation is well-founded, its inverse is strongly normalizing, and vice versa. -/
+lemma sn_imp_wf_inv [Nonempty α] : WellFounded r ↔ strongly_normalizing (Rel.inv r) := by
+  constructor
+  -- WellFounded -> strongly_normalizing is easy
+  · rintro hwf ⟨f, hf⟩
+    obtain ⟨a, ⟨hmem, hmin⟩⟩ := hwf.has_min (f '' Set.univ) (Set.image_nonempty.mpr Set.univ_nonempty)
+    obtain ⟨n, rfl⟩: ∃n, f n = a := by rwa [<-Set.mem_range, <-Set.image_univ]
+    exact hmin (f (n + 1)) (by simp only [Set.image_univ, Set.mem_range, exists_apply_eq_apply]) (hf n)
+
+  /-
+  strongly_normalizing → WellFounded is more difficult.
+  We first translate WellFounded to its equivalent "relation has a minimum on all sets"
+  Then, we take the contrapositive. That way, we get a "step" formula, telling us there
+  is a next element x ∈ s for each element m ∈ s which is related through r x m.
+
+  `choose!` transforms this formula into a function along with hypotheses on it.
+  This is really the crucial step, and the one I don't understand very well.
+
+  Afterwards, it is an easy induction.
+  -/
+  · intro hsn
+    rw [WellFounded.wellFounded_iff_has_min]
+    contrapose! hsn with hwf
+    obtain ⟨s, ⟨⟨x, hx⟩, hstep⟩⟩ := hwf
+
+    choose! f hmem hrel using hstep
+
+    intro h
+    have ⟨n, hn⟩ := h (f^[·] x)
+    have : ∀N, f^[N] x ∈ s := by
+      clear hn
+      intro N
+      induction N with
+      | zero => exact hx
+      | succ n ih =>
+        rw [Function.iterate_succ', Function.comp]
+        apply hmem _ ih
+
+    apply hn
+    rw [Function.iterate_succ', Function.comp]
+    exact hrel _ (this n)
+
+end sn_wf
+
+
+lemma nwn_step (a : α): ¬weakly_normalizing' r a → ∀b, r∗ a b → ∃c, r b c := by
+  intro hwn
+  contrapose! hwn
+  obtain ⟨b, hb⟩ := hwn; use b
+  simp_all only [not_exists, not_false_eq_true, implies_true, and_self]
+
+lemma strongly_normalizing_imp_weakly_normalizing {r: α → α → Prop}: strongly_normalizing r → weakly_normalizing r := by
+  unfold weakly_normalizing strongly_normalizing
+  intro hsn
+  contrapose! hsn with hwn
+  obtain ⟨a, ha⟩ := hwn
+
+  choose! f h₁ using nwn_step r a (by simp [weakly_normalizing']; itauto)
+
+  have: ∀N, r∗ a (f^[N] a) := by
+    intro N; induction N with
+    | zero => simp [ReflTransGen.refl]
+    | succ n ih =>
+        rw [Function.iterate_succ', Function.comp]
+        exact ReflTransGen.tail ih (h₁ _ ih)
+
+  use (f^[·] a)
+  intro N
+  rw [Function.iterate_succ', Function.comp]
+  exact h₁ _ (this N)
+
+def empty_rel {α}: α → α → Prop := fun _ _ ↦ False
+
+def nonempty_rel := ∃a b, r a b
+
+lemma empty_rel_is_sn_and_dp: (@strongly_normalizing α empty_rel ∧ @diamond_property α empty_rel) := by
+  simp [empty_rel]
+
+lemma nonempty_wn_rel_imp_not_dp (hn: nonempty_rel r) : weakly_normalizing r → ¬diamond_property r := by
+  intro hw hdp
+  obtain ⟨a, b, hab⟩ := hn
+  obtain ⟨c, ⟨hnf, hstep⟩⟩ := hw a
+
+  cases hstep with
+  | refl => simp_all only [not_exists, not_forall, diamond_property, and_imp]
+  | tail h₁ h₂ => exact hnf (Exists.imp (by tauto) (hdp _ _ _ ⟨h₂, h₂⟩))
 
 section ex1_3_1
 
