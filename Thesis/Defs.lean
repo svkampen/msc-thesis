@@ -255,6 +255,24 @@ theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
         exact ⟨e, ⟨ReflTransGen.trans hc.left he.left,
                    ReflTransGen.trans hd.right he.right⟩⟩
 
+/-- The diamond property implies confluence. -/
+lemma diamond_property_imp_confluent : diamond_property s → confluent s := by
+  intro hdp
+  apply (semi_confluent_iff_confluent s).mp
+  suffices ∀a b c, s∗ a b ∧ s a c → ∃d, s b d ∧ s∗ c d by
+    intro a b c h'
+    obtain ⟨d, hd⟩ := this a b c h'
+    use d, ReflTransGen.single hd.left, hd.right
+  intro a b c ⟨hab, hac⟩
+  induction hab with
+  | refl => use c, hac, ReflTransGen.refl
+  | tail _ hef ih =>
+      rename_i e _
+      obtain ⟨d, ⟨hed, hcd⟩⟩ := ih
+      have ⟨g, hg⟩ := hdp _ _ _ ⟨hed, hef⟩
+      use g, hg.right, ReflTransGen.tail hcd hg.left
+
+
 /-- Strong confluence, as defined by Huet (1980). -/
 def strongly_confluent := ∀a b c, r a b ∧ r a c → ∃d, r⁼ b d ∧ r∗ c d
 
