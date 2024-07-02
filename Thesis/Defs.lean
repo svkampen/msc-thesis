@@ -63,13 +63,13 @@ local notation:50 (priority := high) x:51 " ⇒∗[" i "]" y:50 => A.rel_star i 
 - for all a, b in α, a reduces to b in B iff a reduces to b in A
 - if a is in α (i.e. `p a` holds) and a reduces to b in B, b is in α (i.e. `p b` holds).
 -/
-def ARS.is_sub_ars_of {p J} (A: ARS (@Subtype β p) I) (B: ARS β J) :=
+def ARS.is_sub_ars_of {p: β → Prop} {J} (A: ARS {b : β // p b} I) (B: ARS β J) :=
   (∀a b, A.union_rel a b ↔ B.union_rel a b) ∧
   (∀a b, p a ∧ B.union_rel a b → p b)
 
 section
 variable {δ} {p : δ → Prop}
-variable (C: ARS δ ι) (D: ARS (@Subtype δ p) κ)
+variable (C: ARS δ ι) (D: ARS {d // p d} κ)
 
 #check D.is_sub_ars_of C
 
@@ -82,6 +82,7 @@ local postfix:max (priority := high) "∗" => ReflTransGen
 local postfix:max (priority := high) "⇔" => EqvGen
 local postfix:max (priority := high) "⁼" => ReflGen
 
+variable {α: Type*}
 variable (r s : α → α → Prop)
 
 /--
