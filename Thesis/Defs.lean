@@ -304,12 +304,9 @@ lemma sc_aux_imp_semi_confluent : sc_aux r → semi_confluent r := by
   · exact ReflTransGen.refl
   · apply ReflTransGen.single; assumption
 
-theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r := by
-  intro h
-  apply (semi_confluent_iff_confluent r).mp
-  apply sc_aux_imp_semi_confluent
-  apply strongly_confluent_imp_sc_aux
-  exact h
+theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r :=
+  fun h ↦ (semi_confluent_iff_confluent _).mp (sc_aux_imp_semi_confluent _ (strongly_confluent_imp_sc_aux _ h))
+
 
 end rel_properties
 
