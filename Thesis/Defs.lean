@@ -338,51 +338,70 @@ lemma diamond_property_imp_no_nf (hdp: diamond_property r): ∀b, (∃a, r a b) 
   intro b a hab
   exact Exists.imp (by tauto) (hdp _ _ _ ⟨hab, hab⟩)
 
-section sn_wf
+/-- If r⁻¹ is well-founded, then r is strongly normalizing. -/
+lemma wf_inv_imp_sn : WellFounded (Rel.inv r) → strongly_normalizing r := by
+  rintro hwf ⟨f, hf⟩
+  obtain ⟨a, ⟨hmem, hmin⟩⟩ := hwf.has_min (f '' Set.univ) (Set.image_nonempty.mpr Set.univ_nonempty)
+  obtain ⟨n, rfl⟩: ∃n, f n = a := by rwa [<-Set.mem_range, <-Set.image_univ]
+  exact hmin (f (n + 1)) (by simp only [Set.image_univ, Set.mem_range, exists_apply_eq_apply]) (hf n)
 
-/-- If a relation is well-founded, its inverse is strongly normalizing, and vice versa. -/
-lemma sn_imp_wf_inv [Nonempty α] : WellFounded r ↔ strongly_normalizing (Rel.inv r) := by
-  constructor
-  -- WellFounded -> strongly_normalizing is easy
-  · rintro hwf ⟨f, hf⟩
-    obtain ⟨a, ⟨hmem, hmin⟩⟩ := hwf.has_min (f '' Set.univ) (Set.image_nonempty.mpr Set.univ_nonempty)
-    obtain ⟨n, rfl⟩: ∃n, f n = a := by rwa [<-Set.mem_range, <-Set.image_univ]
-    exact hmin (f (n + 1)) (by simp only [Set.image_univ, Set.mem_range, exists_apply_eq_apply]) (hf n)
+/--
+If r is strongly normalizing, then r⁻¹ is well-founded.
 
-  /-
-  strongly_normalizing → WellFounded is more difficult.
-  We first translate WellFounded to its equivalent "relation has a minimum on all sets"
-  Then, we take the contrapositive. That way, we get a "step" formula, telling us there
-  is a next element x ∈ s for each element m ∈ s which is related through r x m.
+This is more difficult than the inverse (`wf_inv_imp_sn`).
 
-  `choose!` transforms this formula into a function along with hypotheses on it.
-  This is really the crucial step, and the one I don't understand very well.
+We first translate WellFounded to its equivalent "relation has a minimum on all sets"
+Then, we take the contrapositive. That way, we get a "step" formula, telling us there
+is a next element `x ∈ s` for each element `m ∈ s` which is related through `r x m`.
 
-  Afterwards, it is an easy induction.
-  -/
-  · intro hsn
-    rw [WellFounded.wellFounded_iff_has_min]
-    contrapose! hsn with hwf
-    obtain ⟨s, ⟨⟨x, hx⟩, hstep⟩⟩ := hwf
+`choose!` transforms this formula into a function along with hypotheses on it.
+This is really the crucial step. I previously attempted to directly define a
+recursive function `f: ℕ → α` which provides the witness for strongly_normalizing,
+but you get into all sorts of problems attempting this. It is much more effective
+to define a step function `f: α → α` and derive `f^[n] x : ℕ → α` from it.
+This can be done manually (see below), but `choose!` is obviously much faster.
 
-    choose! f hmem hrel using hstep
+Afterwards, it is an easy induction.
+-/
+lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (Rel.inv r) := by
+  intro hsn
+  rw [WellFounded.wellFounded_iff_has_min]
+  contrapose! hsn with hwf
+  obtain ⟨s, ⟨⟨x, hx⟩, hstep⟩⟩ := hwf
 
-    intro h
-    have ⟨n, hn⟩ := h (f^[·] x)
-    have : ∀N, f^[N] x ∈ s := by
-      clear hn
-      intro N
-      induction N with
-      | zero => exact hx
-      | succ n ih =>
-        rw [Function.iterate_succ', Function.comp]
-        apply hmem _ ih
+  -- let f : α → α := fun m ↦ if hm : (m ∈ s) then Classical.choose (hstep m hm) else x
 
-    apply hn
-    rw [Function.iterate_succ', Function.comp]
-    exact hrel _ (this n)
+  -- have hmem: ∀m ∈ s, f m ∈ s := by
+  --   intro m hm
+  --   simp [f, dif_pos hm]
+  --   apply (Classical.choose_spec (hstep m hm)).1
 
-end sn_wf
+  -- have hrel: ∀ m ∈ s, r m (f m) := by
+  --   intro m hm
+  --   simp [f, dif_pos hm]
+  --   apply (Classical.choose_spec (hstep m hm)).2
+
+  -- or, equivalently:
+  choose! f hmem hrel using hstep
+
+  intro h
+  have ⟨n, hn⟩ := h (f^[·] x)
+  have : ∀N, f^[N] x ∈ s := by
+    clear hn
+    intro N
+    induction N with
+    | zero => exact hx
+    | succ n ih =>
+      rw [Function.iterate_succ', Function.comp]
+      apply hmem _ ih
+
+  apply hn
+  rw [Function.iterate_succ', Function.comp]
+  exact hrel _ (this n)
+
+/-- If a relation is strongly normalizing, its inverse is well-founded, and vice versa. -/
+lemma sn_iff_wf_inv: WellFounded (Rel.inv r) ↔ strongly_normalizing (r) :=
+  Iff.intro (wf_inv_imp_sn r) (sn_imp_wf_inv r)
 
 
 lemma nwn_step (a : α): ¬weakly_normalizing' r a → ∀b, r∗ a b → ∃c, r b c := by
