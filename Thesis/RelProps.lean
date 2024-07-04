@@ -16,125 +16,13 @@ attribute [symm] SymmGen.symm
 theorem SymmGen.symmetric {r : α → α → Prop} : Symmetric (SymmGen r) :=
   fun _ _ h ↦ by symm; assumption
 
-section ars_def
-
-/--
-An Abstract Rewriting System (ARS), consisting of a set `α`, index type `I`
-and an indexed set of rewrite relations on `α` over `I` (`ARS.rel`).
--/
-structure ARS (α I : Type*) where
-  rel : I → α → α → Prop
-
-variable {α I}
-variable (A : ARS α I)
-
-/-- The union of the indexed relations of an ARS. -/
-abbrev ARS.union_rel: α → α → Prop :=
-  fun x y ↦ ∃i, A.rel i x y
-
-/-- The reflexive-transitive closure of an ARS relation. -/
-abbrev ARS.rel_star: I → α → α → Prop :=
-  fun i ↦ ReflTransGen (A.rel i)
-
-/-- The reflexive-transitive closure of the union of ARS relations. -/
-abbrev ARS.union_rel_star: α → α → Prop :=
-  ReflTransGen A.union_rel
-
-/--
-The convertability relation ≡ generated from the union of ARS relations.
-Note that this is denoted using `=` in TeReSe, which we use for true equality.
--/
-def ARS.conv: α → α → Prop :=
-  EqvGen A.union_rel
-
-/-- `x ⇒ y` means x one-step reduces to y. -/
-local infixr:60 (priority := high) " ⇒ " => A.union_rel
-
-/-- `x ⇒∗ y` means x reduces to y reflexive-transitively. -/
-local infixr:60 (priority := high) " ⇒∗ " => A.union_rel_star
-
--- I don't love this notation, but oh well..
-local notation:50 (priority := high) x:51 " ⇒[" i "]" y:50 => A.rel i x y
-local notation:50 (priority := high) x:51 " ⇒∗[" i "]" y:50 => A.rel_star i x y
-
-/--
-`A: ARS α I` is a sub-ARS of `B: ARS β J` if:
-- α is a subtype of β (i.e. α ~ Subtype β p for some p)
-- for all a, b in α, a reduces to b in B iff a reduces to b in A
-- if a is in α (i.e. `p a` holds) and a reduces to b in B, b is in α (i.e. `p b` holds).
--/
-def ARS.is_sub_ars_of {p: β → Prop} {J} (A: ARS {b : β // p b} I) (B: ARS β J) :=
-  (∀a b, A.union_rel a b ↔ B.union_rel a b) ∧
-  (∀a b, p a ∧ B.union_rel a b → p b)
-
-section
-variable {δ} {p : δ → Prop}
-variable (C: ARS δ ι) (D: ARS {d // p d} κ)
-
-#check D.is_sub_ars_of C
-
-end
-end ars_def
-
-section reduction_seq
-
-variable {α I}
-variable (A: ARS α I)
-
-/--
-`ReductionSeq A is x y` represents a reduction sequence in `A`,
-taking indexed reduction steps as given in `is` from `x` to `y`.
-
-An empty reduction sequence is represented by `ReductionSeq.refl`, allowing a
-reduction from `x` to `x` in 0 steps. Using `ReductionSeq.head`, a single step
-`a ⇒[i] b` can be prepended to an existing reduction sequence.
--/
-inductive ReductionSeq: List I → α → α → Prop
-  | refl (x) : ReductionSeq [] x x
-  | head {i x y z} : A.rel i x y → ReductionSeq is y z → ReductionSeq (i :: is) x z
-
-theorem ReductionSeq.tail (hr : ReductionSeq A l a b) (hstep : A.rel i b c) : ReductionSeq A (l ++ [i]) a c := by
-  induction hr with
-  | refl => apply head hstep; exact refl c
-  | head step _ ih => exact head step (ih hstep)
-
-theorem ReductionSeq.concat : ReductionSeq A l x y → ReductionSeq A l' y z → ReductionSeq A (l ++ l') x z := by
-  intro r₁ r₂
-  induction r₁ with
-  | refl a => rwa [List.nil_append]
-  | head step _ ih => exact ReductionSeq.head step (ih r₂)
-
-/-- A reduction sequence exists iff there is a reflexive-transitive reduction. -/
-lemma ReductionSeq.exists_iff_union_rel_star {x y : α} : A.union_rel_star x y ↔ ∃is, ReductionSeq A is x y := by
-  constructor <;> intro r
-  · induction r using ReflTransGen.head_induction_on with
-    | refl => use []; exact ReductionSeq.refl y
-    | head step _ ih =>
-        obtain ⟨is, h⟩ := ih
-        obtain ⟨i, h'⟩ := step
-        use (i :: is)
-        apply ReductionSeq.head h' h
-  · rcases r with ⟨is, r⟩
-    induction r with
-    | refl a => apply ReflTransGen.refl
-    | head step _ ih =>
-        apply ReflTransGen.head
-        · exact Exists.intro _ step
-        · exact ih
-
-
-def ReductionSeq.labels : ReductionSeq A l x y → List I :=
-  fun _ ↦ l
-
-end reduction_seq
-
 section rel_properties
 
-local postfix:max (priority := high) "∗" => ReflTransGen
-local postfix:max (priority := high) "⇔" => EqvGen
-local postfix:max (priority := high) "⁼" => ReflGen
+postfix:max (priority := high) "∗" => ReflTransGen
+postfix:max (priority := high) "⇔" => EqvGen
+postfix:max (priority := high) "⁼" => ReflGen
 
-variable {α: Type*}
+variable {α: Type*} [Nonempty α]
 variable (r s : α → α → Prop)
 
 /--
@@ -150,6 +38,12 @@ the existence of a d s.t. `r∗ c d` and `s∗ b d`.
 -/
 @[simp] def commutes :=
   ∀(a b c: α), r∗ a b ∧ s∗ a c → ∃d, s∗ b d ∧ r∗ c d
+
+@[simp] def subcommutative' (a: α) :=
+  ∀(b c : α), r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
+
+@[simp] def subcommutative :=
+  ∀(a b c : α), r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
 
 /-- Elementwise confluence (see `confluent`). -/
 @[simp] def confluent' (a: α) : Prop :=
@@ -174,10 +68,18 @@ the existence of a d s.t. `r∗ c d` and `s∗ b d`.
 @[simp] def diamond_property : Prop :=
   ∀(a b c: α), r a b ∧ r a c → ∃d, r b d ∧ r c d
 
+@[simp] def triangle_property' (a: α) : Prop :=
+  ∃a', ∀b, r a b → r b a'
+
+@[simp] def triangle_property : Prop :=
+  ∀a, ∃a', ∀b, r a b → r b a'
+
 -- Ensure that these definitions don't go out of sync:
+#check (by simp : subcommutative r ↔ ∀a, subcommutative' r a)
 #check (by simp : confluent r ↔ ∀a, confluent' r a)
 #check (by simp : weakly_confluent r ↔ ∀a, weakly_confluent' r a)
 #check (by simp : diamond_property r ↔ ∀a, diamond_property' r a)
+#check (by simp : triangle_property r ↔ ∀a, triangle_property' r a)
 
 /-- `ReflTransGen` is idempotent, i.e. applying it once is the same as applying it n>1 times. -/
 lemma ReflTransGen.idempotent : ReflTransGen (ReflTransGen r) x y ↔ ReflTransGen r x y := by
@@ -256,10 +158,10 @@ theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
                    ReflTransGen.trans hd.right he.right⟩⟩
 
 /-- The diamond property implies confluence. -/
-lemma diamond_property_imp_confluent : diamond_property s → confluent s := by
+lemma diamond_property_imp_confluent : diamond_property r → confluent r := by
   intro hdp
-  apply (semi_confluent_iff_confluent s).mp
-  suffices ∀a b c, s∗ a b ∧ s a c → ∃d, s b d ∧ s∗ c d by
+  apply (semi_confluent_iff_confluent r).mp
+  suffices ∀a b c, r∗ a b ∧ r a c → ∃d, r b d ∧ r∗ c d by
     intro a b c h'
     obtain ⟨d, hd⟩ := this a b c h'
     use d, ReflTransGen.single hd.left, hd.right
@@ -307,6 +209,9 @@ lemma sc_aux_imp_semi_confluent : sc_aux r → semi_confluent r := by
 theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r :=
   fun h ↦ (semi_confluent_iff_confluent _).mp (sc_aux_imp_semi_confluent _ (strongly_confluent_imp_sc_aux _ h))
 
+/-- An infinite reduction sequence described by f. -/
+@[reducible] def inf_reduction_seq (f: ℕ → α) := ∀n, r (f n) (f (n + 1))
+
 /-- An element a is a normal form in r if there are no b s.t. r a b. -/
 @[reducible] def normal_form (a: α) := ¬∃b, r a b
 
@@ -322,14 +227,43 @@ theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r 
 
 /-- A relation `r` is strongly normalizing if there are no infinite reduction sequences. -/
 @[reducible] def strongly_normalizing : Prop :=
-  ¬∃(f: ℕ → α), ∀n, r (f n) (f (n + 1))
+  ¬∃(f: ℕ → α), inf_reduction_seq r f
+
+/-- Normal Form property: if a is equivalent to b and b is a normal form, a reduces to b. -/
+def NF_prop :=
+  ∀a b, normal_form r b → r⇔ a b → r∗ a b
+
+/-- Unique Normal form property: all equivalent normal forms a and b are equal. -/
+def UN_prop :=
+  ∀a b, normal_form r a ∧ normal_form r b → r⇔ a b → a = b
+
+/-- Unique Normal form property w.r.t. reduction: all normal forms with a common expansion are equal. -/
+def UNr_prop :=
+  ∀a b, normal_form r a ∧ normal_form r b → (∃c, r∗ c a ∧ r∗ c b) → a = b
+
+def complete := confluent r ∧ strongly_normalizing r
+
+def semi_complete := UN_prop r ∧ weakly_normalizing r
+
+/--
+A relation is _inductive_ if every element in an infinite reduction sequence also reduces to some a.
+Note that this is specifically about infinite reduction sequences. There may need to be some other
+definition for finite reduction sequences; I don't know when inductive relations are used yet :P.
+-/
+def inf_inductive := ∀f, inf_reduction_seq r f → ∃a, ∀n, r∗ (f n) a
+
+def increasing := ∃(f: α → ℕ), ∀a b, r a b → f a < f b
+
+def finitely_branching :=
+  ∀a, ∃(s: Finset α), ∀b, r a b → b ∈ s
 
 -- For example, a reflexive relation is never strongly normalizing.
 example [inst: Inhabited α]: ¬(strongly_normalizing r⁼) := by
   push_neg
   intro h
   obtain ⟨a⟩ := inst
-  have ⟨_, hn⟩ := h (fun _ ↦ a)
+  simp [inf_reduction_seq] at h
+  obtain ⟨_, hn⟩ := h (fun _ ↦ a)
   apply hn ReflGen.refl
 
 /-- A relation with the diamond property has no non-trivial normal forms. -/
@@ -369,6 +303,8 @@ lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (Rel.inv r) := by
   contrapose! hsn with hwf
   obtain ⟨s, ⟨⟨x, hx⟩, hstep⟩⟩ := hwf
 
+  push_neg
+
   -- let f : α → α := fun m ↦ if hm : (m ∈ s) then Classical.choose (hstep m hm) else x
 
   -- have hmem: ∀m ∈ s, f m ∈ s := by
@@ -384,10 +320,8 @@ lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (Rel.inv r) := by
   -- or, equivalently:
   choose! f hmem hrel using hstep
 
-  intro h
-  have ⟨n, hn⟩ := h (f^[·] x)
+  use (f^[·] x)
   have : ∀N, f^[N] x ∈ s := by
-    clear hn
     intro N
     induction N with
     | zero => exact hx
@@ -395,8 +329,9 @@ lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (Rel.inv r) := by
       rw [Function.iterate_succ', Function.comp]
       apply hmem _ ih
 
-  apply hn
-  rw [Function.iterate_succ', Function.comp]
+  unfold inf_reduction_seq
+  intro n
+  simp only [Function.iterate_succ', Function.comp]
   exact hrel _ (this n)
 
 /-- If a relation is strongly normalizing, its inverse is well-founded, and vice versa. -/
@@ -410,6 +345,7 @@ lemma nwn_step (a : α): ¬weakly_normalizing' r a → ∀b, r∗ a b → ∃c, 
   obtain ⟨b, hb⟩ := hwn; use b
   simp_all only [not_exists, not_false_eq_true, implies_true, and_self]
 
+/-- Strong normalization implies weak normalization. -/
 lemma strongly_normalizing_imp_weakly_normalizing {r: α → α → Prop}: strongly_normalizing r → weakly_normalizing r := by
   unfold weakly_normalizing strongly_normalizing
   intro hsn
@@ -427,8 +363,17 @@ lemma strongly_normalizing_imp_weakly_normalizing {r: α → α → Prop}: stron
 
   use (f^[·] a)
   intro N
-  rw [Function.iterate_succ', Function.comp]
+  simp only [Function.iterate_succ', Function.comp]
   exact h₁ _ (this N)
+
+/- A shorter proof, making use of well-foundedness. -/
+lemma strongly_normalizing_imp_weakly_normalizing₂ {r: α → α → Prop}: strongly_normalizing r → weakly_normalizing r := by
+  intro hsn a
+  obtain ⟨b, ⟨hab, hnf⟩⟩ := (sn_imp_wf_inv _ hsn).has_min {b | r∗ a b} (Set.nonempty_of_mem ReflTransGen.refl)
+  use b, ?nf, hab
+  simp [normal_form]
+  intro x hbx
+  exact hnf x (ReflTransGen.tail hab hbx) hbx
 
 def empty_rel {α}: α → α → Prop := fun _ _ ↦ False
 
@@ -446,33 +391,7 @@ lemma nonempty_wn_rel_imp_not_dp (hn: nonempty_rel r) : weakly_normalizing r →
   | refl => simp_all only [not_exists, not_forall, diamond_property, and_imp]
   | tail h₁ h₂ => exact hnf (Exists.imp (by tauto) (hdp _ _ _ ⟨h₂, h₂⟩))
 
-section ex1_3_1
 
-variable (hrs: Subrelation r s) (hsr: Subrelation s r∗) (hdp: diamond_property s)
-
-lemma aux {a b: α}: r∗ a b ↔ s∗ a b := by
-  constructor
-  · intro hr
-    induction hr with
-    | refl => exact ReflTransGen.refl
-    | tail _ hr₂ ih => exact ReflTransGen.tail ih (hrs hr₂)
-  · intro hs
-    induction hs with
-    | refl => exact ReflTransGen.refl
-    | tail _ hs₂ ih => exact ReflTransGen.trans ih (hsr hs₂)
-
-example: confluent r := by
-  intro a b c
-  have aux' := @aux _ r s hrs hsr
-  rw [aux', aux']
-  intro h
-  have hcs := diamond_property_imp_confluent _ hdp
-  have ⟨d, hd⟩ := hcs _ _ _ h
-  use d
-  rw [aux', aux']
-  exact hd
-
-end ex1_3_1
 
 end rel_properties
 
