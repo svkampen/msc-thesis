@@ -322,13 +322,7 @@ lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (r.inv) := by
   choose! f hmem hrel using hstep
 
   use (f^[·] x)
-  have : ∀N, f^[N] x ∈ s := by
-    intro N
-    induction N with
-    | zero => exact hx
-    | succ n ih =>
-      rw [Function.iterate_succ', Function.comp]
-      apply hmem _ ih
+  have : ∀N, f^[N] x ∈ s := Function.Iterate.rec _ hmem hx
 
   unfold inf_reduction_seq
   intro n
@@ -355,12 +349,7 @@ lemma strongly_normalizing_imp_weakly_normalizing {r: Rel α α}: strongly_norma
 
   choose! f h₁ using nwn_step r a (by simp [weakly_normalizing']; itauto)
 
-  have: ∀N, r∗ a (f^[N] a) := by
-    intro N; induction N with
-    | zero => simp [ReflTransGen.refl]
-    | succ n ih =>
-        rw [Function.iterate_succ', Function.comp]
-        exact ReflTransGen.tail ih (h₁ _ ih)
+  have: ∀N, r∗ a (f^[N] a) := Function.Iterate.rec _ (fun b h ↦ ReflTransGen.tail h (h₁ b h)) ReflTransGen.refl
 
   use (f^[·] a)
   intro N
