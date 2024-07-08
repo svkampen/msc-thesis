@@ -213,6 +213,8 @@ theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r 
 /-- An infinite reduction sequence described by f. -/
 @[reducible] def inf_reduction_seq (f: ℕ → α) := ∀n, r (f n) (f (n + 1))
 
+@[reducible] def fin_reduction_seq {n} (f: Fin n → α) := ∀N, (h: N < (n - 1)) → r (f ⟨N, by omega⟩) (f ⟨N + 1, by omega⟩)
+
 /-- An element a is a normal form in r if there are no b s.t. r a b. -/
 @[reducible] def normal_form (a: α) := ¬∃b, r a b
 
