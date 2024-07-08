@@ -35,7 +35,7 @@ theorem ReductionSeq.concat : ReductionSeq A l x y → ReductionSeq A l' y z →
   | head step _ ih => exact ReductionSeq.head step (ih r₂)
 
 /-- A reduction sequence exists iff there is a reflexive-transitive reduction. -/
-lemma ReductionSeq.exists_iff_union_rel_star {x y : α} : A.union_rel_star x y ↔ ∃is, ReductionSeq A is x y := by
+lemma ReductionSeq.exists_iff_union_rel_star {x y : α} : A.union_rel∗ x y ↔ ∃is, ReductionSeq A is x y := by
   constructor <;> intro r
   · induction r using ReflTransGen.head_induction_on with
     | refl => use []; exact ReductionSeq.refl y

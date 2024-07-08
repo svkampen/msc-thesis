@@ -7,13 +7,13 @@ namespace Thesis
 open Relation
 
 /-- The symmetric closure over a relation `r`. -/
-inductive SymmGen (r : α → α → Prop) : α → α → Prop
+inductive SymmGen (r : Rel α α) : Rel α α
   | single {a b} : r a b → SymmGen r a b
   | symm {a b} : SymmGen r a b → SymmGen r b a
 
 attribute [symm] SymmGen.symm
 
-theorem SymmGen.symmetric {r : α → α → Prop} : Symmetric (SymmGen r) :=
+theorem SymmGen.symmetric {r : Rel α α} : Symmetric (SymmGen r) :=
   fun _ _ h ↦ by symm; assumption
 
 section rel_properties
@@ -21,9 +21,10 @@ section rel_properties
 postfix:max (priority := high) "∗" => ReflTransGen
 postfix:max (priority := high) "⇔" => EqvGen
 postfix:max (priority := high) "⁼" => ReflGen
+postfix:max (priority := high) "⁺" => TransGen
 
 variable {α: Type*} [Nonempty α]
-variable (r s : α → α → Prop)
+variable (r s : Rel α α)
 
 /--
 Two relations r and s commute weakly if `r a b` and `s a c`
@@ -82,7 +83,7 @@ the existence of a d s.t. `r∗ c d` and `s∗ b d`.
 #check (by simp : triangle_property r ↔ ∀a, triangle_property' r a)
 
 /-- `ReflTransGen` is idempotent, i.e. applying it once is the same as applying it n>1 times. -/
-lemma ReflTransGen.idempotent : ReflTransGen (ReflTransGen r) x y ↔ ReflTransGen r x y := by
+lemma ReflTransGen.idempotent : r∗∗ x y ↔ r∗ x y := by
   constructor
   · intro h
     induction h with
@@ -273,7 +274,7 @@ lemma diamond_property_imp_no_nf (hdp: diamond_property r): ∀b, (∃a, r a b) 
   exact Exists.imp (by tauto) (hdp _ _ _ ⟨hab, hab⟩)
 
 /-- If r⁻¹ is well-founded, then r is strongly normalizing. -/
-lemma wf_inv_imp_sn : WellFounded (Rel.inv r) → strongly_normalizing r := by
+lemma wf_inv_imp_sn : WellFounded (r.inv) → strongly_normalizing r := by
   rintro hwf ⟨f, hf⟩
   obtain ⟨a, ⟨hmem, hmin⟩⟩ := hwf.has_min (f '' Set.univ) (Set.image_nonempty.mpr Set.univ_nonempty)
   obtain ⟨n, rfl⟩: ∃n, f n = a := by rwa [<-Set.mem_range, <-Set.image_univ]
@@ -297,7 +298,7 @@ This can be done manually (see below), but `choose!` is obviously much faster.
 
 Afterwards, it is an easy induction.
 -/
-lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (Rel.inv r) := by
+lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (r.inv) := by
   intro hsn
   rw [WellFounded.wellFounded_iff_has_min]
   contrapose! hsn with hwf
@@ -335,7 +336,7 @@ lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (Rel.inv r) := by
   exact hrel _ (this n)
 
 /-- If a relation is strongly normalizing, its inverse is well-founded, and vice versa. -/
-lemma sn_iff_wf_inv: WellFounded (Rel.inv r) ↔ strongly_normalizing (r) :=
+lemma sn_iff_wf_inv: WellFounded (r.inv) ↔ strongly_normalizing (r) :=
   Iff.intro (wf_inv_imp_sn r) (sn_imp_wf_inv r)
 
 
@@ -346,7 +347,7 @@ lemma nwn_step (a : α): ¬weakly_normalizing' r a → ∀b, r∗ a b → ∃c, 
   simp_all only [not_exists, not_false_eq_true, implies_true, and_self]
 
 /-- Strong normalization implies weak normalization. -/
-lemma strongly_normalizing_imp_weakly_normalizing {r: α → α → Prop}: strongly_normalizing r → weakly_normalizing r := by
+lemma strongly_normalizing_imp_weakly_normalizing {r: Rel α α}: strongly_normalizing r → weakly_normalizing r := by
   unfold weakly_normalizing strongly_normalizing
   intro hsn
   contrapose! hsn with hwn
@@ -367,7 +368,7 @@ lemma strongly_normalizing_imp_weakly_normalizing {r: α → α → Prop}: stron
   exact h₁ _ (this N)
 
 /- A shorter proof, making use of well-foundedness. -/
-lemma strongly_normalizing_imp_weakly_normalizing₂ {r: α → α → Prop}: strongly_normalizing r → weakly_normalizing r := by
+lemma strongly_normalizing_imp_weakly_normalizing₂ {r: Rel α α}: strongly_normalizing r → weakly_normalizing r := by
   intro hsn a
   obtain ⟨b, ⟨hab, hnf⟩⟩ := (sn_imp_wf_inv _ hsn).has_min {b | r∗ a b} (Set.nonempty_of_mem ReflTransGen.refl)
   use b, ?nf, hab
@@ -375,7 +376,7 @@ lemma strongly_normalizing_imp_weakly_normalizing₂ {r: α → α → Prop}: st
   intro x hbx
   exact hnf x (ReflTransGen.tail hab hbx) hbx
 
-def empty_rel {α}: α → α → Prop := fun _ _ ↦ False
+def empty_rel {α}: Rel α α := fun _ _ ↦ False
 
 def nonempty_rel := ∃a b, r a b
 
