@@ -232,6 +232,10 @@ theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r 
 @[reducible] def strongly_normalizing : Prop :=
   ¬∃(f: ℕ → α), inf_reduction_seq r f
 
+
+@[mk_iff] class IsStronglyNormalizing: Prop :=
+  sn : strongly_normalizing r
+
 /-- Normal Form property: if a is equivalent to b and b is a normal form, a reduces to b. -/
 def NF_prop :=
   ∀a b, normal_form r b → r⇔ a b → r∗ a b
