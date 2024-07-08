@@ -71,33 +71,56 @@ def ARS.reduction_graph (B: ARS β I) (b: β) : SubARS B (fun b' ↦ B.union_rel
 example (B: ARS β I) (b: β) : (ARS {b': β // B.union_rel∗ b b'} Unit) = ARS {b' : β // ∃a, (a = b) ∧ B.union_rel∗ a b' } Unit := by
   simp [exists_eq_left]
 
-section cofinality
+lemma SubARS.star_prop₁ (S: SubARS A p J): (∀a b, S.ars.union_rel∗ a b ↔ A.union_rel∗ a b) := by
+  intro a b
+  constructor <;> intro h'
+  · induction h' with
+    | refl => exact ReflTransGen.refl
+    | tail h₁ h₂ ih =>
+      apply ReflTransGen.tail ih
+      rwa [<-S.is_sub.left]
+  · rcases a with ⟨a', ha'⟩
+    rcases b with ⟨b', hb'⟩
+    simp [Subtype.mk] at h'
+    induction h' using ReflTransGen.head_induction_on with
+    | refl => exact ReflTransGen.refl
+    | head h₁ _h₂ ih =>
+      rename_i b c
+      have hc : p c := S.is_sub.right b c ⟨ha', h₁⟩
+      apply ReflTransGen.head _ (ih hc)
+      simp [S.is_sub.left]
+      exact h₁
 
-variable (r: α → α → Prop)
+lemma SubARS.star_prop₂ (S: SubARS A p J): (∀a b, p a ∧ A.union_rel∗ a b → p b) := by
+  rintro a b ⟨hpa, hab⟩
+  induction hab with
+  | refl => exact hpa
+  | tail h₁ h₂ ih =>
+      rename_i b c
+      have := S.is_sub.right b c
+      tauto
 
-/--
-A subtype `{a // p a}` is cofinal in r if every element `a: α` reduces to
-some b in the subtype.
--/
-def cofinal (p: α → Prop) := ∀a, ∃b, p b ∧ r∗ a b
+lemma SubARS.down_confluent (S: SubARS A p J): confluent (A.union_rel) → confluent (S.ars.union_rel) := by
+  intro hc a b c hhyp
+  have hhyp' : A.union_rel∗ a b ∧ A.union_rel∗ a c := by
+    constructor <;> (rw [<-S.star_prop₁ _ a _]; simp only [hhyp])
+  have ⟨d, hd⟩ := hc _ _ _ hhyp'
+  have hpd : p d := S.star_prop₂ _ b _ ⟨b.property, hd.left⟩
+  use ⟨d, hpd⟩
+  constructor <;> (simp [S.star_prop₁ _ _ ⟨d, hpd⟩]; simp [hd])
 
-section cp
+lemma SubARS.down_sn (S: SubARS A p J): strongly_normalizing (A.union_rel) -> strongly_normalizing (S.ars.union_rel) := by
+  unfold strongly_normalizing
+  intro hsn
+  contrapose! hsn
+  obtain ⟨f, hf⟩ := hsn
+  use (λn => f n)
+  intro n
+  apply (S.is_sub.left _ _).mp
+  exact hf n
 
-variable (a: α)
-
-def rg := A.reduction_graph a
-
-/--
-An infinite reduction sequence (described by f) is cofinal in r if the set
-of all elements in the sequence is cofinal in r.
--/
-def inf_cofinal_reduction {f: ℕ → α} := cofinal r (f '' Set.univ)
-
-
-
-end cp
-
-end cofinality
+-- etc, sub-ARS also preserves WCR, subcommutative, DP, WN, WF, UN, NF, Ind, Inc, FB, CP
+-- prove them as needed
 
 end ars_def
 
