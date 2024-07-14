@@ -26,7 +26,7 @@ def inf_cofinal_reduction (f: ℕ → α) := inf_reduction_seq r f ∧ cofinal r
 A finite reduction sequence `rs` is cofinal in `A.union_rel` if the set of all elements
 in the sequence is cofinal in r.
 -/
-def ReductionSeq'.cofinal_reduction (r: ReductionSeq' A is as x y) := cofinal A.union_rel {x | x ∈ as}
+def ReductionSeq.cofinal_reduction (r: ReductionSeq A x y ss) := cofinal A.union_rel {x | x ∈ r.elems}
 
 section cp
 
@@ -34,7 +34,7 @@ variable (a: α)
 
 
 def fin_cofinality_property (a: α) :=
-  ∃is as x y, ∃(r: ReductionSeq' (A.reduction_graph a).ars is as x y), r.cofinal_reduction
+  ∃x y ss, ∃(r: ReductionSeq (A.reduction_graph a).ars x y ss), r.cofinal_reduction
 
 def inf_cofinality_property (a: α) :=
   (∃f, inf_cofinal_reduction (A.reduction_graph a).ars.union_rel f)
