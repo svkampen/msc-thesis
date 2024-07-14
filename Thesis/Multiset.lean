@@ -319,7 +319,7 @@ lemma less_add (h: MultisetExt1 r N M) (hM: M = a ::ₘ M0):
 
 theorem all_accessible (hwf: WellFounded r): ∀M, Acc (MultisetExt1 r) M := by
   intro M
-  induction M using Multiset.induction_on with
+  induction M using Multiset.induction with
   | empty =>
     constructor
     intro y hy

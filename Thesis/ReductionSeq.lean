@@ -23,7 +23,7 @@ inductive ReductionSeq: α → α → List (I × α) → Prop
   | refl {x} : ReductionSeq x x []
   | head {i x y} : A.rel i x y → ReductionSeq y z ss → ReductionSeq x z ((i, y)::ss)
 
-def ReductionSeq.elems (hseq: ReductionSeq A x y ss) := x :: (ss.map (·.2))
+def ReductionSeq.elems (_: ReductionSeq A x y ss) := x :: (ss.map (·.2))
 
 theorem ReductionSeq.tail (hr: ReductionSeq A x y ss) (hstep: A.rel i y z) : ReductionSeq A x z (ss ++ [(i, z)]) := by
   induction hr with

@@ -73,6 +73,7 @@ the existence of a d s.t. `r∗ c d` and `s∗ b d`.
 #check (by simp : triangle_property r ↔ ∀a, triangle_property' r a)
 
 /-- `ReflTransGen` is idempotent, i.e. applying it once is the same as applying it n>1 times. -/
+@[simp]
 lemma ReflTransGen.idempotent : r∗∗ x y ↔ r∗ x y := by
   constructor
   · intro h
@@ -86,10 +87,10 @@ lemma ReflTransGen.idempotent : r∗∗ x y ↔ r∗ x y := by
 
 /- A few trivial equivalences relating confluence-adjacent properties. -/
 lemma confluent_iff_star_weakly_confluent: confluent r ↔ weakly_confluent r∗ := by
-  simp [ReflTransGen.idempotent]
+  simp
 
 lemma confluent_iff_star_self_commutes: confluent r ↔ commutes r∗ r∗ := by
-  simp [ReflTransGen.idempotent]
+  simp
 
 lemma confluent_iff_star_dp: confluent r ↔ diamond_property r∗ := by
   rfl
@@ -102,14 +103,14 @@ def semi_confluent := ∀a b c, r∗ a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c
 
 theorem semi_confluent_iff_confluent: semi_confluent r ↔ confluent r := by
   constructor
-  · intro hosc
+  · intro hsc
     rintro a b c ⟨hab, hac⟩
     induction hac with
     | refl => use b
     | tail _ hef ih =>
         rename_i e f _
         obtain ⟨d, hd⟩ := ih
-        have ⟨g, hg⟩: ∃g, r∗ d g ∧ r∗ f g := hosc e d f ⟨hd.right, hef⟩
+        have ⟨g, hg⟩: ∃g, r∗ d g ∧ r∗ f g := hsc e d f ⟨hd.right, hef⟩
         have hbg: r∗ b g := ReflTransGen.trans hd.left hg.left
         exact ⟨g, ⟨hbg, hg.right⟩⟩
   · rintro hc a b c ⟨hab, hac⟩
@@ -201,12 +202,15 @@ theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r 
   fun h ↦ (semi_confluent_iff_confluent _).mp (sc_aux_imp_semi_confluent _ (strongly_confluent_imp_sc_aux _ h))
 
 /-- An infinite reduction sequence described by f. -/
-@[reducible] def inf_reduction_seq (f: ℕ → α) := ∀n, r (f n) (f (n + 1))
+@[reducible] def inf_reduction_seq (f: ℕ → α) :=
+  ∀n, r (f n) (f (n + 1))
 
-@[reducible] def fin_reduction_seq {n} (f: Fin n → α) := ∀N, (h: N < (n - 1)) → r (f ⟨N, by omega⟩) (f ⟨N + 1, by omega⟩)
+@[reducible] def fin_reduction_seq {n} (f: Fin n → α) :=
+  ∀N, (h: N < (n - 1)) → r (f ⟨N, by omega⟩) (f ⟨N + 1, by omega⟩)
 
 /-- An element a is a normal form in r if there are no b s.t. r a b. -/
-@[reducible] def normal_form (a: α) := ¬∃b, r a b
+@[reducible] def normal_form (a: α) :=
+  ¬∃b, r a b
 
 @[reducible] def weakly_normalizing' (a: α) : Prop :=
   ∃b, normal_form r b ∧ r∗ a b
@@ -221,7 +225,6 @@ theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r 
 /-- A relation `r` is strongly normalizing if there are no infinite reduction sequences. -/
 @[reducible] def strongly_normalizing : Prop :=
   ¬∃(f: ℕ → α), inf_reduction_seq r f
-
 
 @[mk_iff] class IsStronglyNormalizing: Prop :=
   sn : strongly_normalizing r
@@ -263,7 +266,7 @@ example [inst: Inhabited α]: ¬(strongly_normalizing r⁼) := by
   obtain ⟨_, hn⟩ := h (fun _ ↦ a)
   apply hn ReflGen.refl
 
-/-- A relation with the diamond property has no non-trivial normal forms. -/
+/-- A relation with the diamond property has no (non-trivial) normal forms. -/
 lemma diamond_property_imp_no_nf (hdp: diamond_property r): ∀b, (∃a, r a b) → ¬normal_form r b := by
   simp
   intro b a hab
@@ -327,7 +330,7 @@ lemma sn_imp_wf_inv : strongly_normalizing r → WellFounded (r.inv) := by
 
 /-- If a relation is strongly normalizing, its inverse is well-founded, and vice versa. -/
 lemma sn_iff_wf_inv: WellFounded (r.inv) ↔ strongly_normalizing (r) :=
-  Iff.intro (wf_inv_imp_sn r) (sn_imp_wf_inv r)
+  ⟨wf_inv_imp_sn r, sn_imp_wf_inv r⟩
 
 
 lemma nwn_step (a : α): ¬weakly_normalizing' r a → ∀b, r∗ a b → ∃c, r b c := by
@@ -356,7 +359,7 @@ lemma strongly_normalizing_imp_weakly_normalizing {r: Rel α α}: strongly_norma
 lemma strongly_normalizing_imp_weakly_normalizing₂ {r: Rel α α}: strongly_normalizing r → weakly_normalizing r := by
   intro hsn a
   obtain ⟨b, ⟨hab, hnf⟩⟩ := (sn_imp_wf_inv _ hsn).has_min {b | r∗ a b} (Set.nonempty_of_mem ReflTransGen.refl)
-  use b, ?nf, hab
+  use b, ?_, hab
   simp [normal_form]
   intro x hbx
   exact hnf x (ReflTransGen.tail hab hbx) hbx
