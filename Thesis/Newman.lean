@@ -1,9 +1,23 @@
+/-
+Newman.lean - two proofs of Newman's Lemma.
+
+We start with Barendregt's proof of Newman's lemma, which makes use of the notion
+of an ambiguous element, which always has an ambiguous successor if r is
+weakly normalizing and weakly confluent. This contradicts strong normalization.
+Therefore, a relation which is strongly normalizing and weakly confluent
+cannot have ambiguous elements, hence it must be confluent.
+
+The second proof makes use of a number of more complicated constructs.
+-/
 import Thesis.RelProps
+import Thesis.SymmSeq
 
 namespace Thesis
 
 open Relation
 open Classical
+
+section newman_barendregt
 
 variable {α} (r: Rel α α)
 
@@ -86,7 +100,14 @@ def newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r 
   rw [Function.iterate_succ', Function.comp]
   apply h₁ _ (h₃ n)
 
+end newman_barendregt
+
 -- prerequisites for different proof of Newman's Lemma
+
+/- The transitive closure of `r.inv` is a strict order if `r` is SN. -/
+section strict_order_trans_inv
+
+variable {α} {r: Rel α α}
 
 /-- A transitive step can be decomposed into a small step and, potentially, a remaining transitive step. -/
 lemma small_step: r⁺ a b → ∃c, r a c ∧ (c = b ∨ r⁺ c b) := by
@@ -100,7 +121,7 @@ lemma small_step: r⁺ a b → ∃c, r a c ∧ (c = b ∨ r⁺ c b) := by
 /-- Given an infinite sequence of transitive steps, there is always a next small step. -/
 lemma step (f: ℕ → α) (hf: inf_reduction_seq r⁺ f) (a: α): (∃n, r⁺ a (f n)) → (∃(p: ℕ × α), r a p.2 ∧ r⁺ p.2 (f p.1)) := by
   rintro ⟨n, hr⟩
-  obtain ⟨c, hc⟩ := small_step r hr
+  obtain ⟨c, hc⟩ := small_step hr
   cases hc.right with
   | inl h =>
     use (n + 1, c), hc.left
@@ -122,7 +143,7 @@ lemma sn_iff_sn_trans: strongly_normalizing r⁺ ↔ strongly_normalizing r := b
   · intro hsn
     contrapose! hsn with hsnt
     obtain ⟨f, hf⟩ := hsnt
-    have hstep := step r f hf
+    have hstep := step f hf
 
     let f': α → α := fun x ↦ if h: ∃n, r⁺ x (f n) then (choose (hstep x h)).2 else x
 
@@ -147,10 +168,11 @@ lemma sn_iff_sn_trans: strongly_normalizing r⁺ ↔ strongly_normalizing r := b
     rw [Function.iterate_succ', Function.comp]
     exact h₂ _ (this n)
 
+/-- If `r` is strongly normalizing, the transitive closure of `r.inv` is a strict order. -/
 instance sn_imp_trans_strict_order [hsn: IsStronglyNormalizing r] : IsStrictOrder α (r.inv)⁺ where
   irrefl := by
     obtain ⟨hsn⟩ := hsn
-    rw [<-sn_iff_sn_trans r] at hsn
+    rw [<-sn_iff_sn_trans] at hsn
     contrapose! hsn
     obtain ⟨a, ha⟩ := hsn
     intro h
@@ -162,6 +184,7 @@ instance sn_imp_trans_strict_order [hsn: IsStronglyNormalizing r] : IsStrictOrde
 #check TransGen.swap
 #check Function.flip_def
 
+/-- If `r` is strongly normalizing, the transitive closure of `r.inv` is well-founded. -/
 instance sn_imp_wf_trans_inv [hsn: IsStronglyNormalizing r]: IsWellFounded α (r.inv)⁺ where
   wf := by
     apply sn_imp_wf_inv
@@ -170,7 +193,11 @@ instance sn_imp_wf_trans_inv [hsn: IsStronglyNormalizing r]: IsWellFounded α (r
     nth_rw 2 [<-Function.swap_def]
     simp only [transGen_swap]
     eta_reduce
-    exact (sn_iff_sn_trans r).mpr hsn.sn
+    exact sn_iff_sn_trans.mpr hsn.sn
+
+end strict_order_trans_inv
+
+variable {r: Rel α α}
 
 lemma newman₂' [IsStronglyNormalizing r] (hwc: weakly_confluent r) [IsStrictOrder α (r.inv)⁺] [IsWellFounded α (r.inv)⁺]:
   confluent r := by
@@ -178,7 +205,7 @@ lemma newman₂' [IsStronglyNormalizing r] (hwc: weakly_confluent r) [IsStrictOr
 
 
 lemma newman₂ [IsStronglyNormalizing r] (hwc: weakly_confluent r): confluent r := by
-  exact newman₂' r hwc
+  exact newman₂' hwc
 
 
 
