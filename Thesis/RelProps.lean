@@ -6,16 +6,6 @@ namespace Thesis
 
 open Relation
 
-/-- The symmetric closure over a relation `r`. -/
-inductive SymmGen (r : Rel α α) : Rel α α
-  | single {a b} : r a b → SymmGen r a b
-  | symm {a b} : SymmGen r a b → SymmGen r b a
-
-attribute [symm] SymmGen.symm
-
-theorem SymmGen.symmetric {r : Rel α α} : Symmetric (SymmGen r) :=
-  fun _ _ h ↦ by symm; assumption
-
 section rel_properties
 
 postfix:max (priority := high) "∗" => ReflTransGen
