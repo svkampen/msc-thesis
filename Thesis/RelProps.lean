@@ -16,6 +16,22 @@ postfix:max (priority := high) "⁺" => TransGen
 variable {α: Type*} [Nonempty α]
 variable (r s : Rel α α)
 
+@[simp]
+lemma rel_inv_star {r: Rel α α}: r.inv∗ x y ↔ r∗ y x := by
+  constructor <;>
+  · intro h
+    induction h
+    · rfl
+    · apply ReflTransGen.head <;> assumption
+
+@[simp]
+lemma rel_inv_plus {r: Rel α α}: r.inv⁺ x y ↔ r⁺ y x := by
+  constructor <;>
+  · intro h
+    induction h
+    · apply TransGen.single; assumption
+    · apply TransGen.head <;> assumption
+
 /--
 Two relations r and s commute weakly if `r a b` and `s a c`
 imply the existence of a d s.t. `r∗ c d` and `s∗ b d`.

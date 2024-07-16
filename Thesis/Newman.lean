@@ -224,6 +224,30 @@ lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
   exact newman₂' hwc
 
 
+lemma newman₃ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
+  have: IsStronglyNormalizing r := ⟨hsn⟩
+  have hwf: IsWellFounded α (r.inv)⁺ := inferInstance
+  have hwf': IsWellFounded (Multiset α) (MultisetExt (r.inv)⁺) := inferInstance
+
+  apply (conv_confluent_iff_confluent r).mp
+  intro a b hab
+  have ⟨ss, hab'⟩ := SymmSeq.iff_conv.mp hab
+
+  suffices ∃ss', ∃(hseq': SymmSeq r a b ss'), ¬hseq'.has_peak by
+    · obtain ⟨ss', hseq', hnp⟩ := this
+      apply hseq'.no_peak_congr hnp
+
+  by_contra! h
+  let hset := {M | ∃ss, ∃(hseq: SymmSeq r a b ss), M = Multiset.ofList hseq.elems}
+  have hne: hset.Nonempty := ⟨Multiset.ofList hab'.elems, ss, hab', rfl⟩
+
+  obtain ⟨M, hM₁, hM₂⟩ := hwf'.wf.has_min hset hne
+  obtain ⟨ss', hseq', hM⟩ := hM₁
+
+  obtain ⟨ss'₂, hseq'₂, hless⟩ := newman_step hwc hseq' (h ss' hseq')
+  rw [<-hM] at hless
+  apply hM₂ hseq'₂.elems _ hless
+  use ss'₂, hseq'₂
 
 
 end Thesis
