@@ -281,6 +281,28 @@ lemma MultisetExt1.nonempty (h: MultisetExt1 r M N): N ≠ 0 := by
   cases h
   simp only [ne_eq, Multiset.cons_ne_zero, not_false_eq_true]
 
+lemma MultisetExt.erase_multiple (K: Multiset α) (hm: M + K = N) (hk: K ≠ 0): MultisetExt r M N := by
+  rw [<-hm]
+  clear hm
+  induction K using Multiset.induction with
+  | empty => contradiction
+  | cons x K ih =>
+    by_cases hk': K = 0
+    · rw [hk']
+      simp
+      rw [add_comm, Multiset.singleton_add]
+      apply TransGen.single
+      nth_rw 1 [<-add_zero M]
+      apply MultisetExt1.rel
+      tauto
+    · have := ih hk'
+      simp
+      apply TransGen.tail this
+      nth_rw 1 [<-add_zero (M + K)]
+      apply MultisetExt1.rel
+      tauto
+
+
 /--
 `less_add` and `all_accessible` are adapted from the Isabelle theory Multiset.
 
