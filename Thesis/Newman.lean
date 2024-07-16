@@ -199,12 +199,28 @@ end strict_order_trans_inv
 
 variable {r: Rel α α}
 
-lemma newman₂' [IsStronglyNormalizing r] (hwc: weakly_confluent r) [IsStrictOrder α (r.inv)⁺] [IsWellFounded α (r.inv)⁺]:
-  confluent r := by
-    sorry
+lemma newman₂' [IsStronglyNormalizing r] [IsStrictOrder α (r.inv)⁺] [hwf: IsWellFounded α (r.inv)⁺] (hwc: weakly_confluent r):
+    ∀a, confluent' r a := by
+    intro a
+    induction' a using hwf.induction with a hwf
+    rintro b c ⟨hab, hac⟩
+    rcases hab.cases_head with rfl | ⟨b', hab', hb'b⟩
+    · use c
+    rcases hac.cases_head with rfl | ⟨c', hac', hc'c⟩
+    · use b
+    clear hab hac
+    obtain ⟨d', hd'⟩ := hwc _ _ _ ⟨hab', hac'⟩
+
+    have hconb': confluent' r b' := hwf b' (TransGen.single hab')
+    have hconc': confluent' r c' := hwf c' (TransGen.single hac')
+
+    obtain ⟨e, he⟩ := hconb' _ _ ⟨hb'b, hd'.1⟩
+    obtain ⟨d, hd⟩ := hconc' _ _ ⟨hc'c, ReflTransGen.trans hd'.2 he.2⟩
+    use d, ReflTransGen.trans he.1 hd.2, hd.1
 
 
-lemma newman₂ [IsStronglyNormalizing r] (hwc: weakly_confluent r): confluent r := by
+lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
+  have: IsStronglyNormalizing r := ⟨hsn⟩
   exact newman₂' hwc
 
 
