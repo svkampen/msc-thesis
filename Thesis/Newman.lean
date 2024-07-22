@@ -195,6 +195,12 @@ instance sn_imp_wf_trans_inv [hsn: IsStronglyNormalizing r]: IsWellFounded α (r
     eta_reduce
     exact sn_iff_sn_trans.mpr hsn.sn
 
+def sn_imp_wf_trans_inv₂ [hsn: IsStronglyNormalizing r]: IsWellFounded α (r.inv)⁺ where
+  wf := by
+    obtain ⟨sn⟩ := hsn
+    have: WellFounded r.inv := by exact (sn_iff_wf_inv r).mpr sn
+    exact WellFounded.transGen this
+
 end strict_order_trans_inv
 
 variable {r: Rel α α}

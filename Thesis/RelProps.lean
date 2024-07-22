@@ -240,12 +240,77 @@ private lemma sc_aux_imp_semi_confluent : sc_aux r → semi_confluent r := by
 theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r :=
   fun h ↦ (semi_confluent_iff_confluent _).mp (sc_aux_imp_semi_confluent _ (strongly_confluent_imp_sc_aux _ h))
 
+
 /-- An infinite reduction sequence described by f. -/
 @[reducible] def inf_reduction_seq (f: ℕ → α) :=
   ∀n, r (f n) (f (n + 1))
 
-@[reducible] def fin_reduction_seq {n} (f: Fin n → α) :=
-  ∀N, (h: N < (n - 1)) → r (f ⟨N, by omega⟩) (f ⟨N + 1, by omega⟩)
+/--
+In an infinite reduction sequence `inf_reduction_seq r f`,
+`f (n + m)` is a reflexive-transitive reduct of `f n`.
+-/
+lemma inf_reduction_seq_star {r: Rel α α}: inf_reduction_seq r f → ∀n m, r∗ (f n) (f (n + m)) := by
+  intro hf
+  intro n m
+  induction m with
+  | zero => rfl
+  | succ n ih =>
+    apply ReflTransGen.tail ih
+    apply hf
+
+/--
+A generic reduction sequence, which is finite if `N ≠ ⊤` and infinite otherwise.
+-/
+def reduction_seq (N: ℕ∞) (f: ℕ → α) :=
+  ∀(n: ℕ), (h: n < N) → r (f n) (f (n + 1))
+
+def reduction_seq_rtg (N: ℕ∞) (f: ℕ → α) :=
+  ∀(n : ℕ), (h: n < N) → r∗ (f n) (f (n + 1))
+
+
+/--
+In a generic reduction sequence `reduction_seq r N f`,
+`f m` is a reduct of `f n`, assuming `n < m < N + 1`.
+-/
+lemma reduction_seq.star {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) (hm: m < N + 1) (hn: n ≤ m): r∗ (f n) (f m) := by
+  obtain ⟨k, hk⟩: ∃k, m = n + k := Nat.exists_eq_add_of_le (by omega)
+  induction k generalizing m n hm hn with
+  | zero => subst hk; rfl
+  | succ k ih =>
+    apply ReflTransGen.tail
+    · apply ih n (n + k)
+      trans (n + (k + 1)).cast
+      · norm_cast; linarith
+      · rw [<-hk]; exact hm
+      linarith
+      rfl
+    · rw [hk]
+      simp [<-add_assoc]
+      apply hseq
+      have h₁: (n + k).cast < (m.cast : ℕ∞) := by norm_cast; linarith
+      have h₂: m.cast ≤ N := by exact ENat.le_of_lt_add_one hm
+      apply lt_of_lt_of_le h₁ h₂
+
+lemma reduction_seq.inf_iff_inf_reduction_seq:
+    reduction_seq r ⊤ f ↔ inf_reduction_seq r f := by
+  constructor
+  · intro h
+    intro n
+    apply h
+    simp [lt_of_le_of_ne]
+  · intro h
+    intro n _
+    apply h
+
+
+def reduction_seq.elems (hseq: reduction_seq r N f): Set α := f '' {x | x < N + 1}
+
+/--
+The start of a reduction sequence is the first element of f, i.e. `f 0`.
+Note that this always holds; a reduction sequence must contain at least one
+element; there is no such thing as an empty reduction sequence with no elements.
+-/
+def reduction_seq.start (hseq: reduction_seq r N f): α := f 0
 
 /-- An element a is a normal form in r if there are no b s.t. r a b. -/
 @[reducible] def normal_form (a: α) :=
@@ -299,11 +364,9 @@ and it is weakly normalizing.
 def semi_complete := unique_nf_prop r ∧ weakly_normalizing r
 
 /--
-A relation is _inductive_ if every element in an infinite reduction sequence also reduces to some a.
-Note that this is specifically about infinite reduction sequences. There may need to be some other
-definition for finite reduction sequences; I don't know when inductive relations are used yet :P.
+A relation is _inductive_ if every element in a reduction sequence also reduces to some `a`.
 -/
-def inf_inductive := ∀f, inf_reduction_seq r f → ∃a, ∀n, r∗ (f n) a
+def rel_inductive := ∀{N f}, reduction_seq r N f → ∃a, ∀n < (N + 1), r∗ (f n.toNat) a
 
 /--
 A relation is _increasing_ if there exists a mapping `f: α → ℕ` which increases
@@ -421,22 +484,118 @@ lemma strongly_normalizing_imp_weakly_normalizing₂ {r: Rel α α}: strongly_no
   intro x hbx
   exact hnf x (ReflTransGen.tail hab hbx) hbx
 
-def empty_rel {α}: Rel α α := fun _ _ ↦ False
 
-def nonempty_rel := ∃a b, r a b
+lemma semi_complete_imp_inductive: semi_complete r → rel_inductive r := by
+  rintro ⟨un, wn⟩
+  intro N f hf
+  have ⟨a, ha⟩ := wn (f 0)
+  unfold unique_nf_prop at un
 
-lemma empty_rel_is_sn_and_dp: (@strongly_normalizing α empty_rel ∧ @diamond_property α empty_rel) := by
-  simp [empty_rel]
+  use a
+  intro n hn
+  cases n with
+  | top => simp at hn
+  | coe n =>
+    simp
+    obtain ⟨b, hb⟩ := wn (f n)
+    suffices ∃b, r∗ (f n) b ∧ a = b by
+      · cases this; simp_all
 
-lemma nonempty_wn_rel_imp_not_dp (hn: nonempty_rel r) : weakly_normalizing r → ¬diamond_property r := by
-  intro hw hdp
-  obtain ⟨a, b, hab⟩ := hn
-  obtain ⟨c, ⟨hnf, hstep⟩⟩ := hw a
+    use b, hb.right
+    apply un a b ⟨ha.left, hb.left⟩
 
-  cases hstep with
-  | refl => simp_all only [not_exists, not_forall, diamond_property, and_imp]
-  | tail h₁ h₂ => exact hnf (Exists.imp (by tauto) (hdp _ _ _ ⟨h₂, h₂⟩))
+    have haf₀: r⇔ a (f 0) := EqvGen.symm _ _ (ha.right.to_equiv)
+    have hf₀fₙ: r⇔ (f 0) (f n) :=
+      ReflTransGen.to_equiv <| hf.star 0 n hn <| Nat.zero_le n
 
+    have hfₙb: r⇔ (f n) b := hb.right.to_equiv
+    apply EqvGen.trans _ _ _ haf₀
+    apply EqvGen.trans _ _ _ hf₀fₙ hfₙb
+
+
+lemma confluent_imp_nf_prop: confluent r → nf_prop r := by
+  intro hc
+  intro a b hnfb hequiv
+  have hconv: conv_confluent r := by exact (conv_confluent_iff_confluent r).mpr hc
+  obtain ⟨c, hc⟩ := hconv a b hequiv
+  suffices hcb: c = b by
+    rw [hcb] at hc; exact hc.left
+  cases hc.right.cases_head
+  · cc
+  · exfalso
+    apply hnfb
+    tauto
+
+lemma nf_imp_un: nf_prop r → unique_nf_prop r := by
+  intro hnf
+  intro a b ⟨hnfa, hnfb⟩ hequiv
+  unfold nf_prop at hnf
+
+  have := hnf a b hnfb hequiv
+  cases this.cases_head
+  · assumption
+  · exfalso; apply hnfa; tauto
+
+lemma semi_complete_imp_confluent: semi_complete r → confluent r := by
+  rintro ⟨hun, hwn⟩
+  rw [<-conv_confluent_iff_confluent r]
+  intro a b hab
+
+  obtain ⟨nfa, hnfa, hranfa⟩ := hwn a
+  obtain ⟨nfb, hnfb, hrbnfb⟩ := hwn b
+
+  have hnfanfb: r⇔ nfa nfb := by
+    apply EqvGen.trans
+    · symm
+      exact hranfa.to_equiv
+    apply EqvGen.trans
+    · exact hab
+    · exact hrbnfb.to_equiv
+
+  have nfa_eq_nfb := hun nfa nfb ⟨hnfa, hnfb⟩ hnfanfb
+  subst nfa_eq_nfb
+
+  exact ⟨nfa, hranfa, hrbnfb⟩
+
+lemma inductive_increasing_imp_sn: rel_inductive r ∧ increasing r → strongly_normalizing r := by
+  rintro ⟨hInd, hInc⟩
+  by_contra! h
+
+  obtain ⟨seq, hseq⟩ := h
+  have hseq': reduction_seq r ⊤ seq := by exact fun n h ↦ hseq n
+  obtain ⟨f, hf⟩ := hInc.trans
+  obtain ⟨a, ha⟩ := hInd hseq'
+  simp at ha
+
+  have ha': ∀n, r∗ (seq n) a := fun n ↦ ha n (WithTop.coe_lt_top n)
+
+  have: ∀k, 1 ≤ f (seq (k + 1)) - f (seq k) := by
+    intro k
+    have := hf _ _ (TransGen.single <| hseq k)
+    omega
+
+  have hgt: ∀n, n ≤ f (seq n) := by
+    intro n
+    induction n with
+    | zero => linarith
+    | succ n ih =>
+      calc n + 1 ≤ f (seq n) + 1 := by omega
+               _ ≤ f (seq n) + f (seq (n + 1)) - f (seq n) := by have := this n; omega
+               _ = f (seq n) - f (seq n) + f (seq (n + 1)) := Nat.sub_add_comm (le_refl _)
+               _ = f (seq (n + 1)) := by omega
+
+  let k := f a
+
+  have ha: a ≠ seq (k + 1) := by
+    intro ha
+    have := hgt (k + 1)
+    rw [<-ha] at this
+    simp [k] at this
+
+  have hr := (reflTransGen_iff_eq_or_transGen.mp <| ha' (k + 1)).resolve_left ha
+  have h: k + 1 ≤ f (seq (k + 1)) := hgt (k + 1)
+  have h': f (seq (k + 1)) < k := hf _ _ hr
+  linarith only [h, h']
 
 
 end rel_properties
