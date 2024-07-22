@@ -16,6 +16,9 @@ postfix:max (priority := high) "⁺" => TransGen
 variable {α: Type*} [Nonempty α]
 variable (r s : Rel α α)
 
+attribute [symm] EqvGen.symm
+
+/-- Taking the inverse of a relation commutes with reflexive-transitive closure. -/
 @[simp]
 lemma rel_inv_star {r: Rel α α}: r.inv∗ x y ↔ r∗ y x := by
   constructor <;>
@@ -24,6 +27,7 @@ lemma rel_inv_star {r: Rel α α}: r.inv∗ x y ↔ r∗ y x := by
     · rfl
     · apply ReflTransGen.head <;> assumption
 
+/-- Taking the inverse of a relation commutes with transitive closure. -/
 @[simp]
 lemma rel_inv_plus {r: Rel α α}: r.inv⁺ x y ↔ r⁺ y x := by
   constructor <;>
@@ -32,16 +36,24 @@ lemma rel_inv_plus {r: Rel α α}: r.inv⁺ x y ↔ r⁺ y x := by
     · apply TransGen.single; assumption
     · apply TransGen.head <;> assumption
 
+
+/-- The reflexive-transitive closure of a relation is a subset of the equivalence closure. -/
+lemma _root_.Relation.ReflTransGen.to_equiv {r: Rel α α} {a b} (h: (ReflTransGen r) a b): (EqvGen r) a b := by
+  induction h using ReflTransGen.trans_induction_on with
+  | ih₁ a => exact EqvGen.refl a
+  | ih₂ h => exact EqvGen.rel _ _ h
+  | ih₃ _ _ he₁ he₂ => exact EqvGen.trans _ _ _ he₁ he₂
+
 /--
-Two relations r and s commute weakly if `r a b` and `s a c`
-imply the existence of a d s.t. `r∗ c d` and `s∗ b d`.
+Two relations `r` and `s` _commute weakly_ if `r a b` and `s a c`
+imply the existence of a `d` s.t. `r∗ c d` and `s∗ b d`.
 -/
 @[simp] def weakly_commutes :=
   ∀(a b c: α), r a b ∧ s a c → ∃d, s∗ b d ∧ r∗ c d
 
 /--
-Two relations r and s commute if `r∗ a b` and `s∗ a c` imply
-the existence of a d s.t. `r∗ c d` and `s∗ b d`.
+Two relations `r` and `s` _commute_ if `r∗ a b` and `s∗ a c` imply
+the existence of a `d` s.t. `r∗ c d` and `s∗ b d`.
 -/
 @[simp] def commutes :=
   ∀(a b c: α), r∗ a b ∧ s∗ a c → ∃d, s∗ b d ∧ r∗ c d
@@ -75,11 +87,13 @@ the existence of a d s.t. `r∗ c d` and `s∗ b d`.
 @[simp] def diamond_property : Prop :=
   ∀(a b c: α), r a b ∧ r a c → ∃d, r b d ∧ r c d
 
+/-- Elementwise triangle property (see `triangle_property`). -/
 @[simp] def triangle_property' (a: α) : Prop :=
   ∃a', ∀b, r a b → r b a'
 
 @[simp] def triangle_property : Prop :=
   ∀a, ∃a', ∀b, r a b → r b a'
+
 
 -- Ensure that these definitions don't go out of sync:
 #check (by simp : subcommutative r ↔ ∀a, subcommutative' r a)
@@ -87,6 +101,7 @@ the existence of a d s.t. `r∗ c d` and `s∗ b d`.
 #check (by simp : weakly_confluent r ↔ ∀a, weakly_confluent' r a)
 #check (by simp : diamond_property r ↔ ∀a, diamond_property' r a)
 #check (by simp : triangle_property r ↔ ∀a, triangle_property' r a)
+
 
 /-- `ReflTransGen` is idempotent, i.e. applying it once is the same as applying it n>1 times. -/
 @[simp]
@@ -101,6 +116,7 @@ lemma ReflTransGen.idempotent : r∗∗ x y ↔ r∗ x y := by
     · apply ReflTransGen.refl
     · exact h
 
+
 /- A few trivial equivalences relating confluence-adjacent properties. -/
 lemma confluent_iff_star_weakly_confluent: confluent r ↔ weakly_confluent r∗ := by
   simp
@@ -111,7 +127,12 @@ lemma confluent_iff_star_self_commutes: confluent r ↔ commutes r∗ r∗ := by
 lemma confluent_iff_star_dp: confluent r ↔ diamond_property r∗ := by
   rfl
 
+
 /--
+A relation `r` is _semi-confluent_ if `r∗ a b` and `r a c` imply the existence
+of a `d` such that `r∗ b d` and `r∗ c d`. This differs from confluence in that
+`c` must be a one-step reduct of `a`.
+
 `semi_confluent` is equivalent to `confluent` (see `semi_confluent_iff_confluent`)
 but is sometimes easier to prove as you can simply use induction on the length of `r∗ a b`.
 -/
@@ -132,16 +153,13 @@ theorem semi_confluent_iff_confluent: semi_confluent r ↔ confluent r := by
   · rintro hc a b c ⟨hab, hac⟩
     exact hc _ _ _ ⟨hab, ReflTransGen.single hac⟩
 
-/-- "Conversion confluent" (made-up term); equivalent to confluence (see `conv_confluent_iff_confluent`). -/
-def conv_confluent := ∀a b, r⇔ a b → ∃c, r∗ a c ∧ r∗ b c
 
-/-- The reflexive-transitive closure of a relation is a subset of the equivalence closure. -/
-lemma lift_rt_to_eqv : ∀a b, r∗ a b → r⇔ a b := by
-  intro _ _ hrs
-  induction hrs using ReflTransGen.trans_induction_on with
-  | ih₁ a => exact EqvGen.refl a
-  | ih₂ h => exact EqvGen.rel _ _ h
-  | ih₃ _ _ he₁ he₂ => exact EqvGen.trans _ _ _ he₁ he₂
+/--
+A relation is _conversion confluent_ if `r⇔ a b` implies the existence of a
+`c` such that `r∗ a c` and `r∗ b c`. It is equivalent to confluence
+(see `conv_confluent_iff_confluent`).
+-/
+def conv_confluent := ∀a b, r⇔ a b → ∃c, r∗ a c ∧ r∗ b c
 
 theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
   constructor
@@ -149,8 +167,8 @@ theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
     rintro a b c ⟨hab, hac⟩
     apply hcc
     apply EqvGen.trans b a c
-    · exact EqvGen.symm _ _ (lift_rt_to_eqv r a b hab)
-    · exact lift_rt_to_eqv r a c hac
+    · exact EqvGen.symm _ _ (hab.to_equiv)
+    · exact hac.to_equiv
   · intro hcon
     rintro a b hab
     induction hab with
@@ -164,6 +182,7 @@ theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
         have ⟨e, he⟩ : ∃e, r∗ c e ∧ r∗ d e := hcon _ _ _ ⟨hc.right, hd.left⟩
         exact ⟨e, ⟨ReflTransGen.trans hc.left he.left,
                    ReflTransGen.trans hd.right he.right⟩⟩
+
 
 /-- The diamond property implies confluence. -/
 lemma diamond_property_imp_confluent : diamond_property r → confluent r := by
@@ -183,7 +202,11 @@ lemma diamond_property_imp_confluent : diamond_property r → confluent r := by
       use g, hg.right, ReflTransGen.tail hcd hg.left
 
 
-/-- Strong confluence, as defined by Huet (1980). -/
+/--
+Strong confluence, as defined by Huet (1980).
+
+Strong confluence implies confluence, see `strongly_confluent_imp_confluent`.
+-/
 def strongly_confluent := ∀a b c, r a b ∧ r a c → ∃d, r⁼ b d ∧ r∗ c d
 
 -- The proof of strong confluence → confluence follows the proof sketch
@@ -266,6 +289,7 @@ if all normal forms with a common expansion are equal.
 def unique_nf_prop_r :=
   ∀a b, normal_form r a ∧ normal_form r b → (∃c, r∗ c a ∧ r∗ c b) → a = b
 
+/-- A relation is _complete_ if it is confluent and strongly normalizing. -/
 def complete := confluent r ∧ strongly_normalizing r
 
 /--
@@ -281,25 +305,29 @@ definition for finite reduction sequences; I don't know when inductive relations
 -/
 def inf_inductive := ∀f, inf_reduction_seq r f → ∃a, ∀n, r∗ (f n) a
 
+/--
+A relation is _increasing_ if there exists a mapping `f: α → ℕ` which increases
+with a reduction step.
+-/
 def increasing := ∃(f: α → ℕ), ∀a b, r a b → f a < f b
 
+lemma increasing.trans: increasing r → increasing r⁺ := by
+    intro hir
+    obtain ⟨f, hf⟩ := hir
+    use f
+    intro a b hab
+    induction hab with
+    | single _ => apply hf; assumption
+    | tail hab hbc ih =>
+      apply lt_trans ih (hf _ _ hbc)
+
+/-- A relation is _finitely branching_ if every element has only finitely many one-step reducts. -/
 def finitely_branching :=
   ∀a, ∃(s: Finset α), ∀b, r a b → b ∈ s
 
--- For example, a reflexive relation is never strongly normalizing.
-example [inst: Inhabited α]: ¬(strongly_normalizing r⁼) := by
-  push_neg
-  intro h
-  obtain ⟨a⟩ := inst
-  simp [inf_reduction_seq] at h
-  obtain ⟨_, hn⟩ := h (fun _ ↦ a)
-  apply hn ReflGen.refl
+/-- A relation is _acyclic_ if no element `a` is a reduct of itself. -/
+def acyclic := ∀a b, r⁺ a b → a ≠ b
 
-/-- A relation with the diamond property has no (non-trivial) normal forms. -/
-lemma diamond_property_imp_no_nf (hdp: diamond_property r): ∀b, (∃a, r a b) → ¬normal_form r b := by
-  simp
-  intro b a hab
-  exact Exists.imp (by tauto) (hdp _ _ _ ⟨hab, hab⟩)
 
 /-- If r⁻¹ is well-founded, then r is strongly normalizing. -/
 lemma wf_inv_imp_sn : WellFounded (r.inv) → strongly_normalizing r := by
@@ -321,7 +349,7 @@ is a next element `x ∈ s` for each element `m ∈ s` which is related through 
 This is really the crucial step. I previously attempted to directly define a
 recursive function `f: ℕ → α` which provides the witness for strongly_normalizing,
 but you get into all sorts of problems attempting this. It is much more effective
-to define a step function `f: α → α` and derive `f^[n] x : ℕ → α` from it.
+to define a step function `f: α → α` and derive `f^[·] x : ℕ → α` from it.
 This can be done manually (see below), but `choose!` is obviously much faster.
 
 Afterwards, it is an easy induction.

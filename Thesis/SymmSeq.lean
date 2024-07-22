@@ -9,6 +9,12 @@ def Rel.dir (r: Rel α α): Direction → (Rel α α)
 | Direction.FW => r
 | Direction.BW => r.inv
 
+lemma Rel.dir_rev (r: Rel α α): r.dir Direction.FW x y ↔ r.dir Direction.BW y x := by
+  constructor <;> (
+    intro h
+    simp [Rel.dir] at *
+    assumption)
+
 namespace Thesis
 open Relation
 open Classical
@@ -42,12 +48,6 @@ open Classical
 
 variable {r: Rel α α}
 
-lemma dir_rev: r.dir FW x y ↔ r.dir BW y x := by
-  constructor <;> (
-    intro h
-    simp [Rel.dir] at *
-    assumption)
-
 lemma SymmSeq.tail {x y z: α} (hseq: SymmSeq r x y ss) (hstep: (r.dir d) y z):
     SymmSeq r x z (ss ++ [(y, d, z)]) := by
   induction hseq with
@@ -64,11 +64,11 @@ lemma SymmSeq.symm {x y: α} (hseq: SymmSeq r x y ss): ∃ss', SymmSeq r y x ss'
     cases d
     · obtain ⟨ss', hss'⟩ := ih
       use (ss' ++ [(y', BW, x')])
-      rw [dir_rev] at hstep
+      rw [Rel.dir_rev] at hstep
       apply SymmSeq.tail hss' hstep
     · obtain ⟨ss', hss'⟩ := ih
       use (ss' ++ [(y', FW, x')])
-      rw [<-dir_rev] at hstep
+      rw [<-Rel.dir_rev] at hstep
       apply SymmSeq.tail hss' hstep
 
 

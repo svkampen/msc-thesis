@@ -256,7 +256,7 @@ private lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direct
         symm
         apply hss (x, d, y)
         simp
-      rw [<-dir_rev]
+      rw [<-Rel.dir_rev]
       exact this
     · intro s hs
       simp at hs
@@ -337,8 +337,7 @@ private lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp
     rw [this, hhseq']
     apply MultisetExt.erase_multiple
     · rfl
-    · clear * -
-      simp
+    · simp
 
   /-
   In this case, ss[n].start ≠ ss[n+1].end, so there must be some actual sequence
@@ -454,7 +453,7 @@ private lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp
   | inl h =>
     have hab := hseq.get_step n (by omega)
     rw [hbw] at hab
-    rw [<-dir_rev] at hab
+    rw [<-Rel.dir_rev] at hab
     simp [Rel.dir] at hab
     apply TransGen.head hab
     have: y = Step.end (x, d, y) := by simp [Step.end]
