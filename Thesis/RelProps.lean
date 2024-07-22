@@ -189,9 +189,9 @@ def strongly_confluent := ∀a b c, r a b ∧ r a c → ∃d, r⁼ b d ∧ r∗ 
 -- The proof of strong confluence → confluence follows the proof sketch
 -- given by Huet (1980). This auxiliary def is used as an intermediate step,
 -- because it provides a strong enough induction hypothesis.
-def sc_aux := ∀a b c, r⁼ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r⁼ c d
+private def sc_aux := ∀a b c, r⁼ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r⁼ c d
 
-lemma strongly_confluent_imp_sc_aux : strongly_confluent r → sc_aux r := by
+private lemma strongly_confluent_imp_sc_aux : strongly_confluent r → sc_aux r := by
   intro hsc
   rintro a b c ⟨hab, hac⟩
   rcases hab with _ | hab
@@ -206,7 +206,7 @@ lemma strongly_confluent_imp_sc_aux : strongly_confluent r → sc_aux r := by
       · have ⟨g, ⟨hfg, hdg⟩⟩ := hsc _ _ _ ⟨hef, hed⟩
         use g, ReflTransGen.trans hbd hdg, hfg
 
-lemma sc_aux_imp_semi_confluent : sc_aux r → semi_confluent r := by
+private lemma sc_aux_imp_semi_confluent : sc_aux r → semi_confluent r := by
   rintro haux a b c ⟨hab, hbc⟩
   obtain ⟨d, hd⟩ := haux _ _ _ ⟨ReflGen.single hbc, hab⟩
   use d, ?_, hd.left
@@ -362,7 +362,7 @@ lemma sn_iff_wf_inv: WellFounded (r.inv) ↔ strongly_normalizing (r) :=
   ⟨wf_inv_imp_sn r, sn_imp_wf_inv r⟩
 
 
-lemma nwn_step (a : α): ¬weakly_normalizing' r a → ∀b, r∗ a b → ∃c, r b c := by
+private lemma nwn_step (a : α): ¬weakly_normalizing' r a → ∀b, r∗ a b → ∃c, r b c := by
   intro hwn
   contrapose! hwn
   obtain ⟨b, hb⟩ := hwn; use b

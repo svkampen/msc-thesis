@@ -110,7 +110,7 @@ section strict_order_trans_inv
 variable {α} {r: Rel α α}
 
 /-- A transitive step can be decomposed into a small step and, potentially, a remaining transitive step. -/
-lemma small_step: r⁺ a b → ∃c, r a c ∧ (c = b ∨ r⁺ c b) := by
+private lemma small_step: r⁺ a b → ∃c, r a c ∧ (c = b ∨ r⁺ c b) := by
   intro hr
   induction hr using TransGen.head_induction_on with
   | base h => use b, h; left; rfl
@@ -119,7 +119,7 @@ lemma small_step: r⁺ a b → ∃c, r a c ∧ (c = b ∨ r⁺ c b) := by
     use c, h₁; right; exact h₂
 
 /-- Given an infinite sequence of transitive steps, there is always a next small step. -/
-lemma step (f: ℕ → α) (hf: inf_reduction_seq r⁺ f) (a: α): (∃n, r⁺ a (f n)) → (∃(p: ℕ × α), r a p.2 ∧ r⁺ p.2 (f p.1)) := by
+private lemma step (f: ℕ → α) (hf: inf_reduction_seq r⁺ f) (a: α): (∃n, r⁺ a (f n)) → (∃(p: ℕ × α), r a p.2 ∧ r⁺ p.2 (f p.1)) := by
   rintro ⟨n, hr⟩
   obtain ⟨c, hc⟩ := small_step hr
   cases hc.right with
@@ -240,7 +240,7 @@ lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
 -- Prerequisites for 3rd proof of Newman's Lemma.
 
 /-- A more specific SymmSeq symmetry lemma for Newman's Lemma. -/
-lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direction.FW): ∃ss', SymmSeq r y x ss' ∧ ∀s' ∈ ss', ∃s ∈ ss, s' = (s.end, Direction.BW, s.start) := by
+private lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direction.FW): ∃ss', SymmSeq r y x ss' ∧ ∀s' ∈ ss', ∃s ∈ ss, s' = (s.end, Direction.BW, s.start) := by
   induction hseq with
   | refl => use []; tauto
   | head d hstep hseq ih =>
@@ -266,7 +266,7 @@ lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direction.FW):
       · simp_all
 
 /-- In a forward-only SymmSeq, there is a transitive step from the start to the end of any intermediate step. -/
-lemma get_trans_step {step: Step α} (hseq: SymmSeq r x y ss) (hstep': step ∈ ss) (hss: ∀s ∈ ss, s.dir = Direction.FW):
+private lemma get_trans_step {step: Step α} (hseq: SymmSeq r x y ss) (hstep': step ∈ ss) (hss: ∀s ∈ ss, s.dir = Direction.FW):
     r⁺ x step.end := by
   induction hseq with
   | refl =>
@@ -288,7 +288,7 @@ lemma get_trans_step {step: Step α} (hseq: SymmSeq r x y ss) (hstep': step ∈ 
     apply TransGen.head hstep_fw this
 
 /-- A single peak-elimination step, used in the peak-elimination proof of Newman's Lemma. -/
-lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp: hseq.has_peak):
+private lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp: hseq.has_peak):
     ∃ss', ∃(hseq': SymmSeq r x y ss'), MultisetExt (r.inv)⁺ (Multiset.ofList hseq'.elems) (Multiset.ofList hseq.elems)
     := by
   obtain ⟨n, hn, ⟨hbw, hfw⟩⟩ := hp
