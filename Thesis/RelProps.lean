@@ -245,21 +245,34 @@ theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r 
 @[mk_iff] class IsStronglyNormalizing: Prop :=
   sn : strongly_normalizing r
 
-/-- Normal Form property: if a is equivalent to b and b is a normal form, a reduces to b. -/
-def NF_prop :=
+/--
+A relation has the _normal form property_ if, when a is equivalent to b and
+b is a normal form, a reduces to b.
+-/
+def nf_prop :=
   ∀a b, normal_form r b → r⇔ a b → r∗ a b
 
-/-- Unique Normal form property: all equivalent normal forms a and b are equal. -/
-def UN_prop :=
+/--
+A relation has the _unique normal form property_ if all equivalent normal forms
+`a` and `b` are equal.
+-/
+def unique_nf_prop :=
   ∀a b, normal_form r a ∧ normal_form r b → r⇔ a b → a = b
 
-/-- Unique Normal form property w.r.t. reduction: all normal forms with a common expansion are equal. -/
-def UNr_prop :=
+/--
+A relation has the _unique normal form property with respect to reduction_
+if all normal forms with a common expansion are equal.
+-/
+def unique_nf_prop_r :=
   ∀a b, normal_form r a ∧ normal_form r b → (∃c, r∗ c a ∧ r∗ c b) → a = b
 
 def complete := confluent r ∧ strongly_normalizing r
 
-def semi_complete := UN_prop r ∧ weakly_normalizing r
+/--
+A relation is _semi-complete_ if it has the unique normal form property
+and it is weakly normalizing.
+-/
+def semi_complete := unique_nf_prop r ∧ weakly_normalizing r
 
 /--
 A relation is _inductive_ if every element in an infinite reduction sequence also reduces to some a.
