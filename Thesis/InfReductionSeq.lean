@@ -1,14 +1,12 @@
 import Mathlib.Tactic
 import Mathlib.Logic.Relation
+import Thesis.ReductionSeq
 
 namespace Thesis.InfReductionSeq
 
 section inf_reduction_seq
 
 open Relation Classical
-
-postfix:max (priority := high) "∗" => ReflTransGen
-postfix:max (priority := high) "⁺" => TransGen
 
 variable {α}
 
@@ -22,6 +20,331 @@ def is_inf_reduction_seq (f: ℕ → α) :=
 end irs_def
 
 variable {r: Rel α α}
+
+lemma trans_chain: r⁺ a b → ∃l, l.getLast? = some b ∧ List.Chain r a l := by
+  intro hr
+  induction hr using TransGen.head_induction_on with
+  | @base a h =>
+    use [b]; simp; exact h
+  | @ih a c h₁ h₂ ih =>
+    obtain ⟨l, hl, hchain⟩ := ih
+    use c::l
+    simp [hl, h₁, hchain]
+    show (c :: l).getLast? = some b
+    exact Option.mem_def.mp (List.mem_getLast?_cons hl) -- suggested by apply?
+
+
+noncomputable def trans_chain': r⁺ a b → List α :=
+  fun h ↦ choose (trans_chain h)
+
+lemma trans_chain'.spec {r: Rel α α} {a b: α} (h: r⁺ a b):
+    (trans_chain' h).getLast? = b ∧ List.Chain r a (trans_chain' h) := by
+  simp [choose_spec (trans_chain h), trans_chain']
+
+lemma trans_chain'.nonempty: 1 ≤ (trans_chain' h).length := by
+  by_contra! h'
+  rw [Nat.lt_one_iff, List.length_eq_zero] at h'
+  apply ((trans_chain' h).getLast?_isSome).mp
+  rwa [(spec h).1, Option.isSome_some]
+
+
+lemma trans_chain'.nonempty': trans_chain' h ≠ [] := by
+  refine List.length_pos.mp ?_
+  simp [<-Nat.one_add_le_iff]
+  apply nonempty
+
+noncomputable def inf_trans_lists (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f): ℕ → List α
+| n => trans_chain' (hf n)
+
+lemma inf_trans_lists.nonempty: ∀n, 1 ≤ (inf_trans_lists f hf n).length
+| n => by simp [inf_trans_lists, trans_chain'.nonempty]
+
+lemma inf_trans_lists.nonempty': ∀n, (inf_trans_lists f hf n) ≠ []
+| n => by
+  refine List.length_pos.mp ?_
+  simp [<-Nat.one_add_le_iff]
+  apply nonempty
+
+section aux
+
+variable (l_seq: ℕ → List α) (hne: ∀n, 1 ≤ (l_seq n).length)
+
+def aux (start: ℕ) (add: ℕ) : α :=
+  if h: add < (l_seq start).length then
+    (l_seq start).get ⟨add,h⟩
+  else
+    have : add - (l_seq start).length < add := by
+      exact Nat.sub_lt_self (hne start) (Nat.le_of_not_lt h)
+    aux (start + 1) (add - (l_seq start).length)
+
+-- def aux' (start: ℕ) (add: ℕ) : (ℕ × ℕ × α) :=
+--   if h: add < (l_seq start).length then
+--     let h' := (l_seq start).get ⟨add,h⟩
+--     ⟨start, add, h'⟩
+--   else
+--     have : add - (l_seq start).length < add := by
+--       exact Nat.sub_lt_self (hne start) (Nat.le_of_not_lt h )
+--     aux' (start + 1) (add - (l_seq start).length)
+
+-- def aux_loc (start: ℕ) (add: ℕ) : (ℕ × ℕ) := let r := (aux' l_seq hne start add); ⟨r.1, r.2.1⟩
+-- def aux_val (start: ℕ) (add: ℕ) : α := (aux' l_seq hne start add).2.2
+
+-- lemma aux_val_loc (start add: ℕ): let r := (aux_loc l_seq hne start add); aux_val l_seq hne start add = (l_seq r.1)[r.2]? := by
+--   simp [aux_val, aux_loc]
+--   induction start, add using aux'.induct l_seq hne
+--   next start add hlt =>
+--     unfold aux'
+--     simp [dif_pos hlt]
+--     symm
+--     rw [List.getElem?_eq_some]
+--     use hlt
+--   next start add h₁ h₂ ih =>
+--   · unfold aux'
+--     simp [dif_neg h₁]
+--     exact ih
+
+
+-- lemma aux_lt {m n: ℕ} (hlt: n < (l_seq m).length): aux_loc l_seq hne m n = (m, n) := by
+--   simp [aux_loc]
+--   unfold aux'
+--   simp [dif_pos hlt]
+
+-- lemma aux_norm {m n i j: ℕ} {a: α}: aux' l_seq hne m n = (i, j, a) → aux' l_seq hne i j = (i, j, a) := by
+--   intro h
+--   have h'' := aux_val_loc l_seq hne m n
+--   have ha: a = aux_val l_seq hne m n := by
+--     unfold aux_val
+--     rw [h]
+--   have hij: (i, j) = aux_loc l_seq hne m n := by
+--     unfold aux_loc
+--     rw [h]
+--   rw [<-hij] at h''
+--   simp at h''
+--   suffices h': j < (l_seq i).length by
+--     unfold aux'
+--     simp [dif_pos h']
+--     refine List.getElem_eq_iff.mpr ?_
+--     rw [ha]
+--     symm
+--     exact h''
+
+--   symm at h''
+--   rw [List.getElem?_eq_some] at h''
+--   tauto
+
+
+-- lemma aux_mem_next (m n i j: ℕ) (h: aux_loc l_seq hne m n = (i, j)):
+--     aux_loc l_seq hne m (n + 1) = (i, j + 1) ∨ aux_loc l_seq hne m (n + 1) = (i + 1, 0) := by
+--   induction m, n using aux'.induct l_seq hne generalizing i j
+--   next start add hlt =>
+--     by_cases hlt': (add + 1) < (l_seq start).length
+--     · left
+--       unfold aux_loc aux'
+--       simp [dif_pos hlt']
+--       have := aux_lt l_seq hne hlt
+--       cc
+--     · right
+--       unfold aux_loc aux'
+--       have : add + 1 = (l_seq start).length := by
+--         simp at hlt'
+--         exact Eq.symm (Nat.le_antisymm hlt' hlt)
+--       simp [dif_neg hlt']
+--       rw [this]
+--       simp
+--       unfold aux'
+--       have: 0 < (l_seq (start + 1)).length := by
+--         have := hne (start + 1)
+--         linarith
+--       simp [dif_pos this]
+--       have := aux_lt l_seq hne hlt
+--       cc
+--   next start add h₁ h₂ ih =>
+--     have hlt: ¬(add + 1) < (l_seq start).length := by omega
+--     rw [aux_loc, aux', dif_neg h₁] at h
+--     have := ih i j h
+--     clear h ih
+--     rw [aux_loc, aux', dif_neg hlt]
+--     simp [aux_loc] at this ⊢
+--     have nat_fact: add - (l_seq start).length + 1 = add + 1 - (l_seq start).length := by omega
+--     rw [nat_fact] at this
+--     tauto
+
+
+
+lemma aux_skip (m k: ℕ): ∃n, aux l_seq hne m (k + n) = aux l_seq hne (m + 1) k := by
+  use (l_seq m).length
+  conv => left; unfold aux; simp
+
+lemma aux_skip_i (i m k: ℕ): ∃n, aux l_seq hne m (k + n) = aux l_seq hne (m + i) k := by
+  induction i generalizing m with
+  | zero => use 0; simp
+  | succ i ih =>
+    obtain ⟨n, hn⟩ := ih (m + 1)
+    obtain ⟨n', hn'⟩ := aux_skip l_seq hne m (k + n)
+    ring_nf at hn hn' ⊢
+
+    rw [<-hn]
+    rw [<-hn']
+    use (n + n')
+    simp [add_assoc]
+
+
+lemma aux_elem (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f):
+    let ls := inf_trans_lists f hf; ∀n > 0, f n = aux ls inf_trans_lists.nonempty (n - 1) ((ls (n - 1)).length - 1) := by
+  simp
+  intro n hn
+  have hn': n ≠ 0 := by linarith
+  unfold aux
+  split
+  next h =>
+    · simp [inf_trans_lists]
+      let c := trans_chain' (hf (n - 1))
+      have ⟨h₁, h₂⟩ := trans_chain'.spec (hf (n - 1))
+      have heq₁ := List.getLast_eq_get (trans_chain' (hf (n - 1))) trans_chain'.nonempty'
+      dsimp at heq₁
+      rw [<-heq₁]
+      have heq₂ := List.getLast?_eq_getLast (trans_chain' (hf (n - 1))) trans_chain'.nonempty'
+      rw [heq₂] at h₁
+      simp [Option.some_inj] at h₁
+      conv => left; rw [<-Nat.sub_one_add_one hn']
+      symm; exact h₁
+  next h =>
+    · simp at h
+      exfalso
+      have h': 1 ≤ (inf_trans_lists f hf _).length := inf_trans_lists.nonempty (n - 1)
+      simp_all only [List.length_nil, nonpos_iff_eq_zero]
+
+lemma aux_elem' (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f):
+    let ls := inf_trans_lists f hf; ∀n > 0, ∃n', f n = aux ls inf_trans_lists.nonempty 0 n' := by
+  simp
+  intro n hn
+  have := aux_elem f hf n hn
+  obtain ⟨n, hn⟩ := aux_skip_i (inf_trans_lists f hf) inf_trans_lists.nonempty (n - 1) 0 ((inf_trans_lists f hf (n - 1)).length - 1)
+  simp only [zero_add] at hn
+  rw [<-hn] at this
+  tauto
+
+noncomputable def seq (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f): ℕ → α
+| 0 => f 0
+| n + 1 => aux (inf_trans_lists f hf) inf_trans_lists.nonempty 0 n
+
+
+lemma seq_contains_elems (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f):
+    ∀n, ∃m, f n = seq f hf m := by
+  intro n
+  cases n with
+  | zero => use 0; simp [seq]
+  | succ n =>
+    simp [seq]
+    obtain ⟨n', hn'⟩ := aux_elem' f hf (n + 1) (by omega)
+    use n' + 1
+
+lemma l_idx_isLast (l: List α) (hne: 0 < l.length) (hl: l[l.length - 1] = x): l.getLast (List.length_pos.mp hne) = x := by
+  rw [<-hl]
+  rw [List.getLast_eq_get]
+  simp
+
+
+lemma aux_is_inf_reduction_seq
+    -- the first list by itself forms a chain
+    (h0 : List.Chain' r (l_seq 0))
+    -- and each subsequent list continues where the last one left off.
+    (h1 : ∀ n, List.Chain r ((l_seq n).getLast (List.length_pos.mp (hne n))) (l_seq (n + 1))):
+    ∀ start, is_inf_reduction_seq r (aux l_seq hne start) := by
+  intro start
+  dsimp [is_inf_reduction_seq]
+  intro add
+  induction start, add using aux.induct l_seq hne
+  next start add hlt =>
+    unfold aux
+    simp [dif_pos hlt]
+    split
+    case isTrue h =>
+      rcases start with (_ | start)
+      · rw [List.chain'_iff_get] at h0
+        apply h0
+        omega
+      · specialize h1 start
+        rw [List.chain_iff_get] at h1
+        apply h1.2
+        omega
+    case isFalse h =>
+      rw [aux]
+      have : add = (l_seq start).length - 1 := by omega
+      subst this
+      simp_all
+      have := Nat.succ_le.mp <| hne (start + 1)
+      simp [dif_pos this]
+      have heq: (l_seq start).getLast (List.length_pos.mp (hne start)) = (l_seq start)[(l_seq start).length - 1] :=
+        l_idx_isLast (l_seq start) (Nat.succ_le.mp <| hne start) rfl
+      specialize h1 start
+      rw [heq, List.chain_iff_get] at h1
+      rcases h1 with ⟨h1₁, -⟩
+      specialize h1₁ this
+      simpa using h1₁
+  next start add h1 _ ih =>
+    rw [aux, dif_neg h1]
+    nth_rw 2 [aux]
+    have not_add_succ_lt: ¬ add + 1 < (l_seq start).length :=
+      fun h => h1 ((lt_add_one add).trans h)
+    rw [dif_neg not_add_succ_lt]
+    have nat_fact: add - (l_seq start).length + 1 = add + 1 - (l_seq start).length := by omega
+    rw [nat_fact] at ih
+    exact ih
+
+lemma hchain0 (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f): List.Chain' r (inf_trans_lists f hf 0) := by
+  obtain ⟨hlast, hchain⟩ := trans_chain'.spec (hf 0)
+  rw [inf_trans_lists, List.Chain']
+  split
+  next x heq => simp
+  next x head as heq =>
+    simp at heq
+    rw [heq] at hchain
+    exact List.chain_of_chain_cons hchain
+
+lemma hchain1 (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f):
+    ∀n, List.Chain r ((inf_trans_lists f hf n).getLast (inf_trans_lists.nonempty' n)) (inf_trans_lists f hf (n + 1)) := by
+  intro n
+  unfold inf_trans_lists
+  simp
+  obtain ⟨hlast₁, -⟩ := trans_chain'.spec (hf n)
+  obtain ⟨-, hchain₂⟩:= trans_chain'.spec (hf (n + 1))
+  convert hchain₂
+  rw [<-Option.some_inj, <-hlast₁]
+  symm
+  apply List.getLast?_eq_getLast
+
+lemma seq_is_inf_reduction_seq (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f):
+    is_inf_reduction_seq r (seq f hf) := by
+  intro n
+  cases n with
+  | zero =>
+    simp [seq]
+    unfold aux
+    have h: 0 < (inf_trans_lists f hf 0).length := by
+      exact Nat.succ_le.mp <| inf_trans_lists.nonempty 0
+    rw [dif_pos h]
+    unfold inf_trans_lists
+    obtain ⟨-, hchain⟩ := trans_chain'.spec (hf 0)
+    rw [List.chain_iff_get] at hchain
+    exact hchain.1 h
+  | succ n =>
+    have := aux_is_inf_reduction_seq (inf_trans_lists f hf) inf_trans_lists.nonempty (hchain0 f hf) (hchain1 f hf) 0
+    have := this n
+    unfold seq; simp
+    assumption
+
+lemma exists_regular_seq (f: ℕ → α) (hf: is_inf_reduction_seq r⁺ f):
+    ∃f', is_inf_reduction_seq r f' ∧
+         (∀n, ∃m, f n = f' m) ∧
+         f 0 = f' 0 := by
+  use (seq f hf)
+  and_intros
+  · exact seq_is_inf_reduction_seq f hf
+  · exact fun n ↦ seq_contains_elems f hf n
+  · unfold seq; simp
+
+end aux
 
 /-- A transitive step can be decomposed into a step and, potentially, a remaining transitive step. -/
 lemma internal_step: r⁺ a b → ∃c, r a c ∧ (c = b ∨ r⁺ c b) := by
