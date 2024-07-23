@@ -14,7 +14,7 @@ section rs_def
 
 variable (r: Rel α α)
 
-private structure Step (α: Type*) where
+structure RSStep (α: Type*) where
   start: α
   stop: α
 
@@ -26,7 +26,7 @@ An empty reduction sequence is represented by `ReductionSeq.refl`, allowing a
 reduction from `x` to `x` in 0 steps. Using `ReductionSeq.head`, a single step
 `r a b` can be prepended to an existing reduction sequence.
 -/
-inductive ReductionSeq: α → α → List (Step α) → Prop
+inductive ReductionSeq: α → α → List (RSStep α) → Prop
   | refl {x} : ReductionSeq x x []
   | head {x y z ss} : r x y → ReductionSeq y z ss → ReductionSeq x z (⟨x, y⟩::ss)
 
@@ -50,7 +50,7 @@ lemma exists_iff_rel_star {x y : α}: r∗ x y ↔ ∃ss, ReductionSeq r x y ss 
     | head step seq ih =>
       exact ReflTransGen.head step ih
 
-def elems (_: ReductionSeq r x y ss) := x :: (ss.map Step.stop)
+def elems (_: ReductionSeq r x y ss) := x :: (ss.map RSStep.stop)
 
 theorem tail (hr: ReductionSeq r x y ss) (hstep: r y z): ReductionSeq r x z (ss ++ [⟨y, z⟩]) := by
   induction hr with
