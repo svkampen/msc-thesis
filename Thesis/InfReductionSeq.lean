@@ -2,6 +2,9 @@ import Mathlib.Tactic
 import Mathlib.Logic.Relation
 import Thesis.ReductionSeq
 
+set_option linter.setOption false
+set_option pp.privateNames true
+
 namespace Thesis.InfReductionSeq
 
 section inf_reduction_seq
@@ -415,23 +418,25 @@ private def trans_idxs (n: ℕ): ℕ :=
 /--
 We form the sequence by getting the element at each index given by `trans_idxs`
 -/
-def trans_seq (n: ℕ): α :=
+private def trans_seq (n: ℕ): α :=
   f (trans_idxs f hgs n)
 
-/-- -/
-lemma trans_idx_step_inc: ∀k, k < trans_idx_step f hgs k := by
+/-- Taking a step from index `k` yields an index greater than `k`. -/
+private lemma trans_idx_step_inc: ∀k, k < trans_idx_step f hgs k := by
   intro k
   unfold trans_idx_step
   have := choose_spec (hgs k)
   omega
 
-lemma trans_idxs_inc: ∀k, trans_idxs f hgs k < trans_idxs f hgs (k + 1) := by
+/-- Doing an extra iteration of `trans_idx_step` yields a larger index. -/
+private lemma trans_idxs_inc: ∀k, trans_idxs f hgs k < trans_idxs f hgs (k + 1) := by
   intro k
   unfold trans_idxs
   simp only [Function.iterate_succ', Function.comp]
   exact trans_idx_step_inc f hgs ((trans_idx_step f hgs)^[k] 0)
 
-lemma trans_idxs_tends_to_infty: ∀n, ∃k, n < trans_idxs f hgs k := by
+/-- For all n, there is an element of `trans_idxs` that is larger than n. -/
+private lemma trans_idxs_tends_to_infty: ∀n, ∃k, n < trans_idxs f hgs k := by
   intro n
   induction n with
   | zero =>
@@ -443,7 +448,12 @@ lemma trans_idxs_tends_to_infty: ∀n, ∃k, n < trans_idxs f hgs k := by
     have := trans_idxs_inc f hgs k
     omega
 
-lemma trans_idxs_inbetween (k: ℕ):
+/--
+If `n` is inbetween `trans_idxs f hgs k` and `trans_idxs f hgs (k + 1)`,
+then `f n` must be equal to `f (trans_idxs f hgs k)`. Hence `f n` is an
+element of `trans_seq f hgs`.
+-/
+private lemma trans_idxs_inbetween (k: ℕ):
     ∀n ∈ Set.Ico (trans_idxs f hgs k) (trans_idxs f hgs (k + 1)), f n = f (trans_idxs f hgs k) := by
   set m₁ := trans_idxs f hgs k with m₁_def
   set m₂ := trans_idxs f hgs (k + 1) with m₂_def
@@ -471,11 +481,16 @@ lemma trans_idxs_inbetween (k: ℕ):
   have := Nat.le_of_lt_succ hn₂
   omega
 
-lemma trans_idxs_sandwich: ∀n, ∃k, n ∈ Set.Ico (trans_idxs f hgs k) (trans_idxs f hgs (k + 1)) := by
+/--
+All `n` are sandwiched by two subsequent elements in `trans_idxs f hgs`.
+Combining this lemma with `trans_idxs_inbetween` above yields the proof
+that `trans_seq f hgs` contains all elements of `f`.
+-/
+private lemma trans_idxs_sandwich: ∀n, ∃k, n ∈ Set.Ico (trans_idxs f hgs k) (trans_idxs f hgs (k + 1)) := by
   intro n
   simp
 
-  -- there is some k s.t. trans_idxs f hgs k is greater than n
+  -- there is some `k` s.t. `trans_idxs f hgs k` is greater than n
   have hkgt := trans_idxs_tends_to_infty f hgs n
 
   -- take the least k that satisfies the requirement
@@ -500,7 +515,7 @@ lemma trans_idxs_sandwich: ∀n, ∃k, n ∈ Set.Ico (trans_idxs f hgs k) (trans
 
 
 /-- `trans_seq f hgs` is an infinite r⁺-reduction sequence. -/
-lemma trans_seq_inf_reduction_seq: inf_reduction_seq r⁺ (trans_seq f hgs) := by
+private lemma trans_seq_inf_reduction_seq: inf_reduction_seq r⁺ (trans_seq f hgs) := by
   intro n
   unfold trans_seq trans_idxs
   set f' := (trans_idx_step f hgs) with f'_def
@@ -528,7 +543,7 @@ lemma trans_seq_inf_reduction_seq: inf_reduction_seq r⁺ (trans_seq f hgs) := b
 
 
 /-- `trans_seq f hgs` contains all elements of `f`. -/
-lemma trans_seq_contains_elems: ∀n, ∃m, f n = (trans_seq f hgs m) := by
+private lemma trans_seq_contains_elems: ∀n, ∃m, f n = (trans_seq f hgs m) := by
   intro n
   obtain ⟨k, hk⟩ := trans_idxs_sandwich f hgs n
   use k
@@ -627,12 +642,12 @@ private lemma finite_seq_flatten (N: ℕ) (f: ℕ → α) (hrs: reduction_seq r�
 
 /--
 A statement that is "obvious" when written down in a pen-and-paper proof, but which
-is unfortunately really difficult to prove in Lean:
+is non-trivial to formalize:
 
 If we have an infinite r∗-reduction sequence
-a₀ ->* a₁ ->* a₂ ...
+`a₀ ->* a₁ ->* a₂ ...`
 there must be some (finite or infinite) reduction sequence
-a₀ -> ... -> a₁ -> ... -> a₂ -> ...
+`a₀ -> ... -> a₁ -> ... -> a₂ -> ...`
 -/
 lemma rt_seq_imp_regular_seq (f: ℕ → α) (hf: reduction_seq r∗ ⊤ f):
     ∃N f', reduction_seq r N f' ∧ (∀n, ∃m: ℕ, ∃(hm: m ≤ N), f n = f' m) ∧ f 0 = f' 0 := by
