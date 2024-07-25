@@ -1,6 +1,7 @@
 import Thesis.ReductionSeq
 import Thesis.ARS
 import Thesis.RelProps
+import Thesis.InfReductionSeq
 
 namespace Thesis
 
@@ -64,17 +65,6 @@ def f' {α : Type*} {I : Type*} (A : ARS α I) (a : α)
 | n + 1 => Classical.choose (common_reduct (f' A a S f a' common_reduct n) (f n))
 
 /--
-An axiom that is "obvious" when written down in a pen-and-paper proof, but which
-is unfortunately really difficult to prove in Lean:
-
-If we have an infinite reflexive-transitive reduction sequence
-a0 ->* a1 ->* a2 ...
-there must be some (finite or infinite) reduction sequence
-a0 -> ... -> a1 -> ... -> a2 -> ...
--/
-axiom exists_regular_seq: ∀f, reduction_seq r∗ ⊤ f → ∃f' N, reduction_seq r N f' ∧ (∀n, ∃m: ℕ, ∃(hm: m < N + 1), f n = f' m) ∧ f 0 = f' 0
-
-/--
 A countable, confluent ARS has the cofinality property.
 -/
 lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_property A := by
@@ -108,7 +98,7 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
     have := Classical.choose_spec (common_reduct (f'' n) (f n))
     exact this.1
 
-  obtain ⟨g, N, hg⟩ := exists_regular_seq S.ars.union_rel f'' hf'
+  obtain ⟨N, g, hg⟩ := InfReductionSeq.rt_seq_imp_regular_seq f'' hf'
 
   use N, g, hg.1
   constructor
@@ -119,6 +109,12 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
     simp [reduction_seq.elems]
     constructor
     · use m
+      constructor
+      · cases N
+        · simp; exact WithTop.coe_lt_top m
+        · norm_cast at hm ⊢
+          omega
+      · rfl
     · rw [<-heq, <-hn]
       have := Classical.choose_spec (common_reduct (f'' n) (f n))
       simp [f'', f']
