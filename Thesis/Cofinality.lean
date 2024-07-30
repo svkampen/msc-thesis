@@ -58,6 +58,7 @@ lemma cp_imp_cr: cofinality_property A → confluent A.union_rel := by
 
 noncomputable section countable_confluent_imp_cp
 
+/-- The sequence bₙ as defined in Klop (1980). -/
 def f' {α : Type*} {I : Type*} (A : ARS α I) (a : α)
   (S : SubARS A (fun b' ↦ A.union_rel∗ a b') Unit) (f : ℕ → { b // S.prop b }) (a' : { b // S.prop b })
   (common_reduct : ∀ (x y : { b // S.prop b }), ∃ c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c)
@@ -72,16 +73,19 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
   set S := A.reduction_graph a with S_def
   set β := {b // S.prop b} with β_def
 
+  -- G(a) must also be countable
   have cnt': Countable β := Subtype.countable
   have hne: Nonempty β := by
     use a
     simp
     rfl
 
+  -- and, since it is nonempty, must have a surjective function ℕ → β
   obtain ⟨f, hf⟩ := countable_iff_exists_surjective.mp cnt'
 
   let a': β := ⟨a, by simp; rfl⟩
 
+  -- every pair of elements in β must have a common reduct, by confluence
   have common_reduct (x y: β): ∃c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c := by
     apply S.down_confluent A cr a'
     constructor
@@ -90,16 +94,20 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
     · have := y.prop
       simp_all [S.star_restrict]
 
+  -- we can form a sequence of common reducts of aₙ
   let f'' := f' A a S f a' common_reduct
 
+  -- this is a S.union_rel∗-reduction sequence
   have hf': reduction_seq S.ars.union_rel∗ ⊤ f'' := by
     intro n _
     simp [f'', f']
     have := Classical.choose_spec (common_reduct (f'' n) (f n))
     exact this.1
 
+  -- with a corresponding regular reduction sequence
   obtain ⟨N, g, hg⟩ := InfReductionSeq.rt_seq_imp_regular_seq f'' hf'
 
+  -- and every element in β has a reduct in the sequence
   use N, g, hg.1
   constructor
   · intro x
