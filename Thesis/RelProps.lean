@@ -242,7 +242,7 @@ theorem strongly_confluent_imp_confluent : strongly_confluent r → confluent r 
 
 
 /-- An infinite reduction sequence described by f. -/
-@[reducible] def inf_reduction_seq (f: ℕ → α) :=
+abbrev inf_reduction_seq (f: ℕ → α) :=
   ∀n, r (f n) (f (n + 1))
 
 /--
@@ -261,7 +261,7 @@ lemma inf_reduction_seq_star {r: Rel α α}: inf_reduction_seq r f → ∀n m, r
 /--
 A generic reduction sequence, which is finite if `N ≠ ⊤` and infinite otherwise.
 -/
-def reduction_seq (N: ℕ∞) (f: ℕ → α) :=
+abbrev reduction_seq (N: ℕ∞) (f: ℕ → α) :=
   ∀(n: ℕ), (h: n < N) → r (f n) (f (n + 1))
 
 def reduction_seq_rtg (N: ℕ∞) (f: ℕ → α) :=
@@ -293,14 +293,7 @@ lemma reduction_seq.star {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) (
 
 lemma reduction_seq.inf_iff_inf_reduction_seq:
     reduction_seq r ⊤ f ↔ inf_reduction_seq r f := by
-  constructor
-  · intro h
-    intro n
-    apply h
-    simp [lt_of_le_of_ne]
-  · intro h
-    intro n _
-    apply h
+  simp [reduction_seq, inf_reduction_seq, lt_of_le_of_ne]
 
 
 def reduction_seq.elems (hseq: reduction_seq r N f): Set α := f '' {x | x < N + 1}
@@ -375,8 +368,7 @@ with a reduction step.
 def increasing := ∃(f: α → ℕ), ∀a b, r a b → f a < f b
 
 lemma increasing.trans: increasing r → increasing r⁺ := by
-    intro hir
-    obtain ⟨f, hf⟩ := hir
+    rintro ⟨f, hf⟩
     use f
     intro a b hab
     induction hab with
@@ -390,7 +382,6 @@ def finitely_branching :=
 
 /-- A relation is _acyclic_ if no element `a` is a reduct of itself. -/
 def acyclic := ∀a b, r⁺ a b → a ≠ b
-
 
 /-- If r⁻¹ is well-founded, then r is strongly normalizing. -/
 lemma wf_inv_imp_sn : WellFounded (r.inv) → strongly_normalizing r := by
@@ -514,9 +505,8 @@ lemma semi_complete_imp_inductive: semi_complete r → rel_inductive r := by
 
 
 lemma confluent_imp_nf_prop: confluent r → nf_prop r := by
-  intro hc
-  intro a b hnfb hequiv
-  have hconv: conv_confluent r := by exact (conv_confluent_iff_confluent r).mpr hc
+  intro hc a b hnfb hequiv
+  have hconv: conv_confluent r := (conv_confluent_iff_confluent r).mpr hc
   obtain ⟨c, hc⟩ := hconv a b hequiv
   suffices hcb: c = b by
     rw [hcb] at hc; exact hc.left
@@ -527,10 +517,7 @@ lemma confluent_imp_nf_prop: confluent r → nf_prop r := by
     tauto
 
 lemma nf_imp_un: nf_prop r → unique_nf_prop r := by
-  intro hnf
-  intro a b ⟨hnfa, hnfb⟩ hequiv
-  unfold nf_prop at hnf
-
+  intro hnf a b ⟨hnfa, hnfb⟩ hequiv
   have := hnf a b hnfb hequiv
   cases this.cases_head
   · assumption
