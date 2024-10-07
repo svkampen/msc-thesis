@@ -109,93 +109,25 @@ section strict_order_trans_inv
 
 variable {α} {r: Rel α α}
 
-/-- A transitive step can be decomposed into a small step and, potentially, a remaining transitive step. -/
-private lemma small_step: r⁺ a b → ∃c, r a c ∧ (c = b ∨ r⁺ c b) := by
-  intro hr
-  induction hr using TransGen.head_induction_on with
-  | base h => use b, h; left; rfl
-  | ih h₁ h₂ _ih =>
-    rename_i a c
-    use c, h₁; right; exact h₂
-
-/-- Given an infinite sequence of transitive steps, there is always a next small step. -/
-private lemma step (f: ℕ → α) (hf: inf_reduction_seq r⁺ f) (a: α): (∃n, r⁺ a (f n)) → (∃(p: ℕ × α), r a p.2 ∧ r⁺ p.2 (f p.1)) := by
-  rintro ⟨n, hr⟩
-  obtain ⟨c, hc⟩ := small_step hr
-  cases hc.right with
-  | inl h =>
-    use (n + 1, c), hc.left
-    simp [h, hf n]
-  | inr h =>
-    use (n, c)
-    tauto
-
-/-- The transitive closure of `r` is strongly normalizing iff `r` is strongly normalizing. -/
-lemma sn_iff_sn_trans: strongly_normalizing r⁺ ↔ strongly_normalizing r := by
-  unfold strongly_normalizing
-  constructor
-  · intro hsnt
-    contrapose! hsnt with hsn
-    obtain ⟨f, hf⟩ := hsn
-    use f
-    intro n
-    exact TransGen.single (hf n)
-  · intro hsn
-    contrapose! hsn with hsnt
-    obtain ⟨f, hf⟩ := hsnt
-    have hstep := step f hf
-
-    let f': α → α := fun x ↦ if h: ∃n, r⁺ x (f n) then (choose (hstep x h)).2 else x
-
-    have h₁ : ∀a, (∃n, r⁺ a (f n)) → (∃n, r⁺ (f' a) (f n)) := by
-      rintro a h
-      have := choose_spec (hstep a h)
-      simp [f', dif_pos h]
-      obtain ⟨-, right⟩ := this
-      exact Exists.intro (choose (hstep a h)).1 right
-
-    have h₂ : ∀a, (∃n, r⁺ a (f n)) → r a (f' a) := by
-      intro a h
-      have := choose_spec (hstep a h)
-      simp [f', dif_pos h]
-      tauto
-
-    have : ∀N, ∃n, r⁺ (f'^[N] (f 0)) (f n) := Function.Iterate.rec _ h₁ (Exists.intro 1 (hf 0))
-
-    use (f'^[·] (f 0))
-    simp only [inf_reduction_seq]
-    intro n
-    rw [Function.iterate_succ', Function.comp]
-    exact h₂ _ (this n)
-
 /-- If `r` is strongly normalizing, the transitive closure of `r.inv` is a strict order. -/
 instance sn_imp_trans_strict_order [hsn: IsStronglyNormalizing r] : IsStrictOrder α (r.inv)⁺ where
   irrefl := by
-    obtain ⟨hsn⟩ := hsn
-    rw [<-sn_iff_sn_trans] at hsn
-    contrapose! hsn
-    obtain ⟨a, ha⟩ := hsn
-    intro h
-    apply h (fun _ ↦ a)
-    simp only [forall_const]
-    exact transGen_swap.mp ha
-
-#check Function.swap_def
-#check TransGen.swap
-#check Function.flip_def
+    have hwf := (sn_iff_wf_inv r).mpr hsn.1
+    have hwf' := WellFounded.transGen hwf
+    have hsn' := (sn_iff_wf_inv r⁺).mp ?_
+    · contrapose! hsn'
+      obtain ⟨a, ha⟩ := hsn'
+      intro h
+      apply h (fun _ ↦ a)
+      simpa using ha
+    · convert hwf' using 1
+      ext
+      simp [Rel.inv, Function.flip_def]
+      nth_rw 1 [<-Function.swap_def]
+      simp only [transGen_swap]
 
 /-- If `r` is strongly normalizing, the transitive closure of `r.inv` is well-founded. -/
 instance sn_imp_wf_trans_inv [hsn: IsStronglyNormalizing r]: IsWellFounded α (r.inv)⁺ where
-  wf := by
-    apply sn_imp_wf_inv
-    -- this flip/swap nonsense is a bit silly...
-    simp only [Rel.inv, Function.flip_def]
-    nth_rw 2 [<-Function.swap_def]
-    simp only [transGen_swap]
-    eta_reduce
-    exact sn_iff_sn_trans.mpr hsn.sn
-
-def sn_imp_wf_trans_inv₂ [hsn: IsStronglyNormalizing r]: IsWellFounded α (r.inv)⁺ where
   wf := by
     obtain ⟨sn⟩ := hsn
     have: WellFounded r.inv := by exact (sn_iff_wf_inv r).mpr sn
