@@ -22,6 +22,11 @@ variable (A : ARS α I)
 abbrev ARS.union_rel: Rel α α :=
   fun x y ↦ ∃i, A.rel i x y
 
+/-- The union of reduction relations with an index smaller than i. -/
+@[simp]
+abbrev ARS.union_lt [PartialOrder I] (A: ARS α I): I → Rel α α :=
+  fun i x y ↦ ∃j, j < i ∧ A.rel j x y
+
 /--
 The convertability relation ≡ generated from the union of ARS relations.
 Note that this is denoted using `=` in TeReSe, which we use for true equality.
