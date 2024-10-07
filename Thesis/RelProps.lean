@@ -8,6 +8,13 @@ open Relation
 
 section rel_properties
 
+@[simp]
+def _root_.Rel.union: Rel α α → Rel α α → Rel α α :=
+  fun r₁ r₂ x y ↦ (r₁ x y) ∨ (r₂ x y)
+
+instance _root_.Rel.instUnion: Union (Rel α α) where
+  union := Rel.union
+
 abbrev _root_.Rel.reflTransGen: Rel α α → Rel α α := ReflTransGen
 
 postfix:max (priority := high) "∗" => Rel.reflTransGen
