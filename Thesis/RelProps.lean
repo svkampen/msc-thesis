@@ -298,6 +298,7 @@ lemma reduction_seq.inf_iff_inf_reduction_seq:
   simp [reduction_seq, inf_reduction_seq, lt_of_le_of_ne]
 
 
+@[simp]
 def reduction_seq.elems (hseq: reduction_seq r N f): Set α := f '' {x | x < N + 1}
 
 /--
@@ -305,7 +306,15 @@ The start of a reduction sequence is the first element of f, i.e. `f 0`.
 Note that this always holds; a reduction sequence must contain at least one
 element; there is no such thing as an empty reduction sequence with no elements.
 -/
+@[simp]
 def reduction_seq.start (hseq: reduction_seq r N f): α := f 0
+
+/--
+Assuming N is a natural number, i.e. not infinite, `hseq.end` is the
+last element of `hseq`, i.e. `f N`.
+-/
+@[simp]
+def reduction_seq.end (N: ℕ) (hseq: reduction_seq r N f): α := f N
 
 /-- An element a is a normal form in r if there are no b s.t. r a b. -/
 @[reducible] def normal_form (a: α) :=
