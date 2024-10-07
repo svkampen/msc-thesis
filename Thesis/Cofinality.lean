@@ -33,6 +33,13 @@ def cofinality_property :=
   ∀a, ∃N f, ∃(hseq: reduction_seq (A.reduction_graph a).ars.union_rel N f),
     cofinal_reduction hseq ∧ hseq.start = a
 
+/--
+An ARS has the component-wise cofinality property (CP_conv) if for every a ∈ A,
+there exists a reduction a = b₀ → b₁ → ⋯ that is cofinal in A|{b | a ≡ b}.
+-/
+def cofinality_property_conv :=
+  ∀a, ∃N f, ∃(hseq: reduction_seq (A.component a).ars.union_rel N f),
+    cofinal_reduction hseq ∧ hseq.start = a
 
 /-- Any ARS with the cofinality property is confluent. -/
 lemma cp_imp_cr: cofinality_property A → confluent A.union_rel := by
@@ -64,6 +71,75 @@ lemma cp_imp_cr: cofinality_property A → confluent A.union_rel := by
   use (f nc)
   simp [S.star_restrict_union] at hcsc hbsc
   exact ⟨hbsc, hcsc⟩
+
+
+-- A cofinal reduction sequence w.r.t. the reduction graph of a is also
+-- cofinal w.r.t. the component of a. That means CP ↔ CP_conv.
+lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := by
+  constructor
+  · show cofinality_property A → cofinality_property_conv A
+    intro hcp a
+    have hc := cp_imp_cr _ hcp
+    have hc' := (conv_confluent_iff_confluent _).mpr hc
+
+    have heq: (A.reduction_graph a).p = (fun b ↦ A.union_rel∗ a b) := A.reduction_graph_p
+
+    obtain ⟨N, f, hseq, hcr, hstart⟩ := hcp a
+
+    set S := A.component a
+
+    let f' : ℕ → { b // A.conv a b } :=
+      fun n ↦ let ⟨val, prop⟩ := f n; ⟨val, (heq ▸ prop).to_equiv⟩
+
+    have hseq': reduction_seq S.ars.union_rel N f' := by
+      intro n hn
+      have := hseq n hn
+      convert hseq n hn using 0
+
+    use N, f', hseq'
+    constructor
+    · rintro ⟨a', ha'⟩
+      have ⟨d, hd₁, hd₂⟩ := hc' _ _ ha'
+      obtain ⟨⟨b, hb⟩, ⟨n, hb₁⟩, hb₂⟩ := hcr ⟨d, heq ▸ hd₁⟩
+      use ⟨b, (heq ▸ hb).to_equiv⟩
+      constructor
+      · use n
+        simp_all only [f', and_imp, true_and]
+      · simp only [SubARS.star_restrict_union] at hb₂ hd₂ ⊢
+        trans d <;> simp only [hb₂, hd₂]
+    · simpa [f'] using hstart
+  · show cofinality_property_conv A → cofinality_property A
+    intro hcp' a
+    obtain ⟨N, f, hseq, hcr, hstart⟩ := hcp' a
+    have hstar := hseq.star 0
+    simp only [reduction_seq.start, zero_le, true_implies, SubARS.star_restrict_union] at hstart hstar
+    rw [hstart] at hstar
+
+    have heq: (A.reduction_graph a).p = (fun b ↦ A.union_rel∗ a b) := A.reduction_graph_p
+
+    let f': ℕ → { b // (A.reduction_graph a).p b } :=
+      fun (n: ℕ) ↦
+        if h: (n < N + 1)
+          then ⟨f n, heq ▸ hstar _ h⟩
+          else ⟨f 0, heq ▸ hstar _ (by simp)⟩
+
+    have hseq' : reduction_seq (A.reduction_graph a).ars.union_rel N f' := by
+      intro n hn
+      have hn': n < N + 1 := lt_of_lt_of_le hn le_self_add
+      have hn'': n + 1 < N + 1 := (WithTop.add_lt_add_iff_right WithTop.one_ne_top).mpr hn
+      convert hseq n hn using 0
+      simp [f', dif_pos hn', dif_pos hn'', reduction_seq, SubARS.restrict_union]
+
+    use N, f', hseq'
+    constructor
+    · rintro ⟨c, hc⟩
+      obtain ⟨⟨b, hbconv⟩, hb₁, hb₂⟩ := hcr ⟨c, (heq ▸ hc).to_equiv⟩
+      simp only [SubARS.star_restrict_union] at hb₂ ⊢
+      simp at hb₁
+      obtain ⟨n, hn₁, hn₂⟩ := hb₁
+      have := hn₂ ▸ hstar n hn₁
+      use ⟨b, heq ▸ this⟩, ⟨n, hn₁, (by simp [f', dif_pos hn₁]; rw [hn₂])⟩
+    · simp [hstart, f']
 
 noncomputable section countable_confluent_imp_cp
 
