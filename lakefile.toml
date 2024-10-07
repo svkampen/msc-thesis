@@ -3,6 +3,7 @@ defaultTargets = ["Thesis"]
 
 [leanOptions]
 pp.unicode.fun = true
+linter.unusedVariables = false
 
 [[require]]
 name = "mathlib"
