@@ -2,6 +2,7 @@ import Thesis.ReductionSeq
 import Thesis.ARS
 import Thesis.RelProps
 import Thesis.InfReductionSeq
+import Mathlib.Logic.Relation
 
 namespace Thesis
 
@@ -42,8 +43,11 @@ lemma cp_imp_cr: cofinality_property A → confluent A.union_rel := by
   set S := A.reduction_graph a with S_def
   obtain ⟨N, f, hseq, hcf, hstart⟩ := hcp_a
 
-  obtain ⟨sb, ⟨hsb, hbsb⟩⟩ := hcf ⟨b, hab⟩
-  obtain ⟨sc, ⟨hsc, hcsc⟩⟩ := hcf ⟨c, hac⟩
+  have Sprop: S.p = A.union_rel∗ a := by
+    simp [S_def]
+
+  obtain ⟨sb, ⟨hsb, hbsb⟩⟩ := hcf ⟨b, Sprop ▸ hab⟩
+  obtain ⟨sc, ⟨hsc, hcsc⟩⟩ := hcf ⟨c, Sprop ▸ hac⟩
 
   simp [reduction_seq.elems] at hsc hsb
 
@@ -58,15 +62,15 @@ lemma cp_imp_cr: cofinality_property A → confluent A.union_rel := by
   have hbsc := hbsb.trans <| hseq.star nb nc hnc hle
 
   use (f nc)
-  simp [S.star_restrict] at hcsc hbsc
+  simp [S.star_restrict_union] at hcsc hbsc
   exact ⟨hbsc, hcsc⟩
 
 noncomputable section countable_confluent_imp_cp
 
 /-- The sequence bₙ as defined in Klop (1980). -/
 def f' {α : Type*} {I : Type*} (A : ARS α I) (a : α)
-  (S : SubARS A (fun b' ↦ A.union_rel∗ a b') Unit) (f : ℕ → { b // S.prop b }) (a' : { b // S.prop b })
-  (common_reduct : ∀ (x y : { b // S.prop b }), ∃ c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c)
+  (S : SubARS A) (f : ℕ → { b // S.p b }) (a' : { b // S.p b })
+  (common_reduct : ∀ (x y : { b // S.p b }), ∃ c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c)
 | 0 => a'
 | n + 1 => Classical.choose (common_reduct (f' A a S f a' common_reduct n) (f n))
 
@@ -76,28 +80,28 @@ A countable, confluent ARS has the cofinality property.
 lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_property A := by
   intro a
   set S := A.reduction_graph a with S_def
-  set β := {b // S.prop b} with β_def
+  set β := {b // S.p b} with β_def
 
   -- G(a) must also be countable
   have cnt': Countable β := Subtype.countable
   have hne: Nonempty β := by
     use a
-    simp
+    simp [S_def]
     rfl
 
   -- and, since it is nonempty, must have a surjective function ℕ → β
   obtain ⟨f, hf⟩ := countable_iff_exists_surjective.mp cnt'
 
-  let a': β := ⟨a, by simp; rfl⟩
+  let a': β := ⟨a, by simp [S_def]; rfl⟩
 
   -- every pair of elements in β must have a common reduct, by confluence
   have common_reduct (x y: β): ∃c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c := by
-    apply S.down_confluent A cr a'
+    apply S.down_confluent_union A cr a'
     constructor
     · have := x.prop
-      simp_all [S.star_restrict]
+      simp_all [S.star_restrict_union]
     · have := y.prop
-      simp_all [S.star_restrict]
+      simp_all [S.star_restrict_union]
 
   -- we can form a sequence of common reducts of aₙ
   let f'' := f' A a S f a' common_reduct
