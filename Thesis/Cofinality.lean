@@ -24,8 +24,13 @@ is cofinal in r.
 def cofinal_reduction {r: Rel α α} {N: ℕ∞} {f: ℕ → α} (hseq: reduction_seq r N f)
   := cofinal r hseq.elems
 
+/--
+An ARS has the cofinality property (CP) if for every a ∈ A, there exists a
+reduction a = b₀ → b₁ → ⋯ that is cofinal in A|{b| a →∗ b}.
+-/
 def cofinality_property :=
-  ∀a, ∃N f, ∃(hseq: reduction_seq (A.reduction_graph a).ars.union_rel N f), cofinal_reduction hseq ∧ hseq.start = a
+  ∀a, ∃N f, ∃(hseq: reduction_seq (A.reduction_graph a).ars.union_rel N f),
+    cofinal_reduction hseq ∧ hseq.start = a
 
 
 /-- Any ARS with the cofinality property is confluent. -/

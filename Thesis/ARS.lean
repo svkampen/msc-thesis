@@ -26,7 +26,7 @@ abbrev ARS.union_rel: Rel α α :=
 The convertability relation ≡ generated from the union of ARS relations.
 Note that this is denoted using `=` in TeReSe, which we use for true equality.
 -/
-def ARS.conv: α → α → Prop :=
+def ARS.conv: Rel α α :=
   EqvGen A.union_rel
 
 /-- `x ⇒ y` means x one-step reduces to y. -/

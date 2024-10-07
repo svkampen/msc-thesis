@@ -146,8 +146,7 @@ theorem semi_confluent_iff_confluent: semi_confluent r ↔ confluent r := by
     rintro a b c ⟨hab, hac⟩
     induction hac with
     | refl => use b
-    | tail _ hef ih =>
-        rename_i e f _
+    | @tail e f hae hef ih =>
         obtain ⟨d, hd⟩ := ih
         have ⟨g, hg⟩: ∃g, r∗ d g ∧ r∗ f g := hsc e d f ⟨hd.right, hef⟩
         have hbg: r∗ b g := ReflTransGen.trans hd.left hg.left
@@ -328,7 +327,7 @@ def reduction_seq.end (N: ℕ) (hseq: reduction_seq r N f): α := f N
   ∀a, ∃b, (normal_form r b ∧ r∗ a b)
 
 @[reducible] def strongly_normalizing' (a: α) : Prop :=
-  ¬∃(f: ℕ → α), f 0 = a ∧ ∀n, r (f n) (f (n + 1))
+  ¬∃(f: ℕ → α), f 0 = a ∧ inf_reduction_seq r f
 
 /-- A relation `r` is strongly normalizing if there are no infinite reduction sequences. -/
 @[reducible] def strongly_normalizing : Prop :=

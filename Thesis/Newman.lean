@@ -178,7 +178,8 @@ lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
 -- Prerequisites for 3rd proof of Newman's Lemma.
 
 /-- A more specific SymmSeq symmetry lemma for Newman's Lemma. -/
-private lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direction.FW): ∃ss', SymmSeq r y x ss' ∧ ∀s' ∈ ss', ∃s ∈ ss, s' = (s.end, Direction.BW, s.start) := by
+private lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direction.FW):
+    ∃ss', SymmSeq r y x ss' ∧ ∀s' ∈ ss', ∃s ∈ ss, s' = (s.end, Direction.BW, s.start) := by
   induction hseq with
   | refl => use []; tauto
   | head d hstep hseq ih =>
@@ -191,11 +192,8 @@ private lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direct
       exact hss'.1
       have: r.dir Direction.FW x y := by
         convert hstep
-        symm
-        apply hss (x, d, y)
-        simp
-      rw [<-Rel.dir_rev]
-      exact this
+        rw [<-hss (x, d, y) (List.mem_cons_self _ _)]
+      rwa [<-Rel.dir_rev]
     · intro s hs
       simp at hs
       cases' hs with h h
@@ -207,17 +205,13 @@ private lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direct
 private lemma get_trans_step {step: Step α} (hseq: SymmSeq r x y ss) (hstep': step ∈ ss) (hss: ∀s ∈ ss, s.dir = Direction.FW):
     r⁺ x step.end := by
   induction hseq with
-  | refl =>
-    contradiction
+  | refl => contradiction
   | head d hstep hseq ih =>
     rename_i x y z ss
     have hstep_fw: r x y := by
-      suffices: r.dir Direction.FW x y
-      · simpa
-      convert hstep
-      symm
-      apply hss (x, d, y)
-      tauto
+      have: d = Direction.FW :=
+        hss (x, d, y) (List.mem_cons_self _ _)
+      simp_all [Rel.dir]
     simp at hstep'
     cases' hstep' with h h
     · simp [h, Step.end]
@@ -227,7 +221,7 @@ private lemma get_trans_step {step: Step α} (hseq: SymmSeq r x y ss) (hstep': s
 
 /-- A single peak-elimination step, used in the peak-elimination proof of Newman's Lemma. -/
 private lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp: hseq.has_peak):
-    ∃ss', ∃(hseq': SymmSeq r x y ss'), MultisetExt (r.inv)⁺ (Multiset.ofList hseq'.elems) (Multiset.ofList hseq.elems)
+    ∃(ss': _) (hseq': SymmSeq r x y ss'), MultisetExt (r.inv)⁺ (Multiset.ofList hseq'.elems) (Multiset.ofList hseq.elems)
     := by
   obtain ⟨n, hn, ⟨hbw, hfw⟩⟩ := hp
   have hab := hseq.get_step n (by omega)
