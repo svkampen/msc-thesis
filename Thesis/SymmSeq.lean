@@ -78,7 +78,7 @@ lemma SymmSeq.concat {x y z: α} (h₁: SymmSeq r x y ss₁) (h₂: SymmSeq r y 
   | head d hstep hseq ih =>
     apply head _ hstep (ih h₂)
 
-lemma SymmSeq.iff_conv {x y: α}: r⇔ x y ↔ ∃ss, SymmSeq r x y ss := by
+lemma SymmSeq.iff_conv {x y: α}: (r≡) x y ↔ ∃ss, SymmSeq r x y ss := by
   constructor
   · intro h; induction h with
     | rel x y _ => use [(x, FW, y)]; apply head _ _ refl; assumption

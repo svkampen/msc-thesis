@@ -8,8 +8,10 @@ open Relation
 
 section rel_properties
 
-postfix:max (priority := high) "∗" => ReflTransGen
-postfix:max (priority := high) "⇔" => EqvGen
+abbrev _root_.Rel.reflTransGen: Rel α α → Rel α α := ReflTransGen
+
+postfix:max (priority := high) "∗" => Rel.reflTransGen
+postfix:max (priority := high) "≡" => EqvGen
 postfix:max (priority := high) "⁼" => ReflGen
 postfix:max (priority := high) "⁺" => TransGen
 
@@ -155,11 +157,11 @@ theorem semi_confluent_iff_confluent: semi_confluent r ↔ confluent r := by
 
 
 /--
-A relation is _conversion confluent_ if `r⇔ a b` implies the existence of a
+A relation is _conversion confluent_ if `r≡ a b` implies the existence of a
 `c` such that `r∗ a c` and `r∗ b c`. It is equivalent to confluence
 (see `conv_confluent_iff_confluent`).
 -/
-def conv_confluent := ∀a b, r⇔ a b → ∃c, r∗ a c ∧ r∗ b c
+def conv_confluent := ∀a b, (r≡) a b → ∃c, r∗ a c ∧ r∗ b c
 
 theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
   constructor
@@ -331,14 +333,14 @@ A relation has the _normal form property_ if, when a is equivalent to b and
 b is a normal form, a reduces to b.
 -/
 def nf_prop :=
-  ∀a b, normal_form r b → r⇔ a b → r∗ a b
+  ∀a b, normal_form r b → (r≡) a b → r∗ a b
 
 /--
 A relation has the _unique normal form property_ if all equivalent normal forms
 `a` and `b` are equal.
 -/
 def unique_nf_prop :=
-  ∀a b, normal_form r a ∧ normal_form r b → r⇔ a b → a = b
+  ∀a b, normal_form r a ∧ normal_form r b → (r≡) a b → a = b
 
 /--
 A relation has the _unique normal form property with respect to reduction_
@@ -495,11 +497,11 @@ lemma semi_complete_imp_inductive: semi_complete r → rel_inductive r := by
     use b, hb.right
     apply un a b ⟨ha.left, hb.left⟩
 
-    have haf₀: r⇔ a (f 0) := EqvGen.symm _ _ (ha.right.to_equiv)
-    have hf₀fₙ: r⇔ (f 0) (f n) :=
+    have haf₀: (r≡) a (f 0) := EqvGen.symm _ _ (ha.right.to_equiv)
+    have hf₀fₙ: (r≡) (f 0) (f n) :=
       ReflTransGen.to_equiv <| hf.star 0 n hn <| Nat.zero_le n
 
-    have hfₙb: r⇔ (f n) b := hb.right.to_equiv
+    have hfₙb: (r≡) (f n) b := hb.right.to_equiv
     apply EqvGen.trans _ _ _ haf₀
     apply EqvGen.trans _ _ _ hf₀fₙ hfₙb
 
@@ -531,7 +533,7 @@ lemma semi_complete_imp_confluent: semi_complete r → confluent r := by
   obtain ⟨nfa, hnfa, hranfa⟩ := hwn a
   obtain ⟨nfb, hnfb, hrbnfb⟩ := hwn b
 
-  have hnfanfb: r⇔ nfa nfb := by
+  have hnfanfb: (r≡) nfa nfb := by
     apply EqvGen.trans
     · symm
       exact hranfa.to_equiv
