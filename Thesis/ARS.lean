@@ -59,6 +59,9 @@ structure SubARS (B: ARS β I) where
   restrict: ∀i a b, ars.rel i a b ↔ B.rel i a b
   closed: ∀i a b, p a ∧ B.rel i a b → p b
 
+@[simp]
+abbrev SubARS.Subtype (S: SubARS A) := {b // S.p b}
+
 lemma SubARS.restrict_union {A: ARS α I} (S: SubARS A): (∀a b, S.ars.union_rel a b ↔ A.union_rel a b) := by
   intro a b
   constructor
@@ -76,7 +79,8 @@ lemma SubARS.closed_union {A: ARS α I} (S: SubARS A): ∀a b, S.p a ∧ A.union
   tauto
 
 
-lemma SubARS.restrict_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A): (∀i a b, S.ars.union_lt i a b ↔ A.union_lt i a b) := by
+lemma SubARS.restrict_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A):
+    (∀i a b, S.ars.union_lt i a b ↔ A.union_lt i a b) := by
   intro i a b
   simp [ARS.union_lt]
   constructor
@@ -87,7 +91,8 @@ lemma SubARS.restrict_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A): (�
     rw [S.restrict] at *
     tauto)
 
-lemma SubARS.closed_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A): ∀i a b, S.p a ∧ A.union_lt i a b → S.p b := by
+lemma SubARS.closed_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A):
+    ∀i a b, S.p a ∧ A.union_lt i a b → S.p b := by
   rintro i a b ⟨h₁, h₂⟩
   obtain ⟨i, hi⟩ := h₂
   apply S.closed

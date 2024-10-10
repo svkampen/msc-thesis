@@ -79,27 +79,19 @@ lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := b
   constructor
   · show cofinality_property A → cofinality_property_conv A
     intro hcp a
-    have hc := cp_imp_cr _ hcp
-    have hc' := (conv_confluent_iff_confluent _).mpr hc
-
-    have heq: (A.reduction_graph a).p = (fun b ↦ A.union_rel∗ a b) := A.reduction_graph_p
+    have hc := (conv_confluent_iff_confluent _).mpr <| cp_imp_cr _ hcp
 
     obtain ⟨N, f, hseq, hcr, hstart⟩ := hcp a
 
-    set S := A.component a
+    have heq: (A.reduction_graph a).p = (A.union_rel∗ a ·) := A.reduction_graph_p
 
     let f' : ℕ → { b // A.conv a b } :=
       fun n ↦ let ⟨val, prop⟩ := f n; ⟨val, (heq ▸ prop).to_equiv⟩
 
-    have hseq': reduction_seq S.ars.union_rel N f' := by
-      intro n hn
-      have := hseq n hn
-      convert hseq n hn using 0
-
-    use N, f', hseq'
+    use N, f', hseq
     constructor
     · rintro ⟨a', ha'⟩
-      have ⟨d, hd₁, hd₂⟩ := hc' _ _ ha'
+      have ⟨d, hd₁, hd₂⟩ := hc _ _ ha'
       obtain ⟨⟨b, hb⟩, ⟨n, hb₁⟩, hb₂⟩ := hcr ⟨d, heq ▸ hd₁⟩
       use ⟨b, (heq ▸ hb).to_equiv⟩
       constructor
@@ -110,12 +102,14 @@ lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := b
     · simpa [f'] using hstart
   · show cofinality_property_conv A → cofinality_property A
     intro hcp' a
+
     obtain ⟨N, f, hseq, hcr, hstart⟩ := hcp' a
     have hstar := hseq.star 0
+
     simp only [reduction_seq.start, zero_le, true_implies, SubARS.star_restrict_union] at hstart hstar
     rw [hstart] at hstar
 
-    have heq: (A.reduction_graph a).p = (fun b ↦ A.union_rel∗ a b) := A.reduction_graph_p
+    have heq: (A.reduction_graph a).p = (A.union_rel∗ a ·) := A.reduction_graph_p
 
     let f': ℕ → { b // (A.reduction_graph a).p b } :=
       fun (n: ℕ) ↦
@@ -125,30 +119,27 @@ lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := b
 
     have hseq' : reduction_seq (A.reduction_graph a).ars.union_rel N f' := by
       intro n hn
-      have hn': n < N + 1 := lt_of_lt_of_le hn le_self_add
-      have hn'': n + 1 < N + 1 := (WithTop.add_lt_add_iff_right WithTop.one_ne_top).mpr hn
+      have hn₁: n < N + 1 := lt_of_lt_of_le hn le_self_add
+      have hn₂: n + 1 < N + 1 := (WithTop.add_lt_add_iff_right WithTop.one_ne_top).mpr hn
       convert hseq n hn using 0
-      simp [f', dif_pos hn', dif_pos hn'', reduction_seq, SubARS.restrict_union]
+      simp [f', dif_pos hn₁, dif_pos hn₂, reduction_seq, SubARS.restrict_union]
 
     use N, f', hseq'
     constructor
     · rintro ⟨c, hc⟩
-      obtain ⟨⟨b, hbconv⟩, hb₁, hb₂⟩ := hcr ⟨c, (heq ▸ hc).to_equiv⟩
-      simp only [SubARS.star_restrict_union] at hb₂ ⊢
-      simp at hb₁
-      obtain ⟨n, hn₁, hn₂⟩ := hb₁
-      have := hn₂ ▸ hstar n hn₁
-      use ⟨b, heq ▸ this⟩, ⟨n, hn₁, (by simp [f', dif_pos hn₁]; rw [hn₂])⟩
+      obtain ⟨⟨b, hbconv⟩, ⟨n, hn₁, hn₂⟩, hb₂⟩ := hcr ⟨c, (heq ▸ hc).to_equiv⟩
+      simp [reduction_seq.elems, f', SubARS.star_restrict_union] at hb₂ ⊢
+      use n
+      simp_all only [heq, Set.mem_setOf_eq, dite_true, and_self]
     · simp [hstart, f']
 
 noncomputable section countable_confluent_imp_cp
 
 /-- The sequence bₙ as defined in Klop (1980). -/
-def f' {α : Type*} {I : Type*} (A : ARS α I) (a : α)
-  (S : SubARS A) (f : ℕ → { b // S.p b }) (a' : { b // S.p b })
-  (common_reduct : ∀ (x y : { b // S.p b }), ∃ c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c)
+private def cnt_cr_imp_cp_aux {A: ARS α I} {S : SubARS A} (f : ℕ → S.Subtype) (a' : S.Subtype)
+  (common_reduct : ∀ (x y : S.Subtype), ∃ c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c)
 | 0 => a'
-| n + 1 => Classical.choose (common_reduct (f' A a S f a' common_reduct n) (f n))
+| n + 1 => Classical.choose (common_reduct (cnt_cr_imp_cp_aux f a' common_reduct n) (f n))
 
 /--
 A countable, confluent ARS has the cofinality property.
@@ -158,17 +149,16 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
   set S := A.reduction_graph a with S_def
   set β := {b // S.p b} with β_def
 
+  -- a is in its own reduction graph
+  let a': β := ⟨a, by simp [S_def]; rfl⟩
+
   -- G(a) must also be countable
   have cnt': Countable β := Subtype.countable
-  have hne: Nonempty β := by
-    use a
-    simp [S_def]
-    rfl
+  have hne: Nonempty β := ⟨a'⟩
 
   -- and, since it is nonempty, must have a surjective function ℕ → β
   obtain ⟨f, hf⟩ := countable_iff_exists_surjective.mp cnt'
 
-  let a': β := ⟨a, by simp [S_def]; rfl⟩
 
   -- every pair of elements in β must have a common reduct, by confluence
   have common_reduct (x y: β): ∃c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c := by
@@ -180,17 +170,17 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
       simp_all [S.star_restrict_union]
 
   -- we can form a sequence of common reducts of aₙ
-  let f'' := f' A a S f a' common_reduct
+  let f' := cnt_cr_imp_cp_aux f a' common_reduct
 
   -- this is a S.union_rel∗-reduction sequence
-  have hf': reduction_seq S.ars.union_rel∗ ⊤ f'' := by
+  have hf': reduction_seq S.ars.union_rel∗ ⊤ f' := by
     intro n _
-    simp [f'', f']
-    have := Classical.choose_spec (common_reduct (f'' n) (f n))
+    simp [f']
+    have := Classical.choose_spec (common_reduct (f' n) (f n))
     exact this.1
 
   -- with a corresponding regular reduction sequence
-  obtain ⟨N, g, hg⟩ := InfReductionSeq.rt_seq_imp_regular_seq f'' hf'
+  obtain ⟨N, g, hg⟩ := InfReductionSeq.rt_seq_imp_regular_seq f' hf'
 
   -- and every element in β has a reduct in the sequence
   use N, g, hg.1
@@ -209,12 +199,12 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
           omega
       · rfl
     · rw [<-heq, <-hn]
-      have := Classical.choose_spec (common_reduct (f'' n) (f n))
-      simp [f'', f']
+      have := Classical.choose_spec (common_reduct (f' n) (f n))
+      simp [f']
       exact this.2
   · simp [reduction_seq.start]
     rw [<-hg.2.2]
-    simp [f'', f']
+    simp [f', cnt_cr_imp_cp_aux]
 
 
 end countable_confluent_imp_cp
