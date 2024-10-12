@@ -276,6 +276,10 @@ def reduction_seq_rtg (N: ℕ∞) (f: ℕ → α) :=
   ∀(n : ℕ), (h: n < N) → r∗ (f n) (f (n + 1))
 
 
+/-- Any function is a length-0 reduction sequence, containing only f 0. -/
+lemma reduction_seq.refl (f: ℕ → α): reduction_seq r 0 f := by
+  simp [reduction_seq]
+
 /--
 In a generic reduction sequence `reduction_seq r N f`,
 `f m` is a reduct of `f n`, assuming `n < m < N + 1`.
