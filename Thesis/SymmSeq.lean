@@ -312,7 +312,7 @@ lemma SymmSeq.last (hseq: SymmSeq r x y (ss' ++ [b])): b.end = y := by
     cases ss' with
     | nil =>
       simp at hss
-      rw [<-hss.2] at hseq
+      rw [hss.2] at hseq
       cases hseq
       rw [hss.1]
     | cons head tail =>

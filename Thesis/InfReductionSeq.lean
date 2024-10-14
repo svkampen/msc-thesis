@@ -2,7 +2,6 @@ import Mathlib.Tactic
 import Mathlib.Logic.Relation
 import Thesis.ReductionSeq
 
-set_option linter.setOption false
 set_option pp.privateNames true
 
 namespace Thesis.InfReductionSeq
@@ -145,7 +144,7 @@ private lemma aux_elem' (f: ℕ → α) (hf: inf_reduction_seq r⁺ f) (n) (hn: 
   next h =>
     · have ⟨h₁, h₂⟩ := trans_chain'.spec (hf (n - 1))
       have heq₂ := List.getLast?_eq_getLast (trans_chain' (hf (n - 1))) trans_chain'.nonempty'
-      simp [List.getLast_eq_get] at heq₂
+      simp [List.getLast_eq_getElem] at heq₂
       rw [heq₂] at h₁
       simp_all [inf_trans_lists]
       congr
@@ -184,7 +183,7 @@ private lemma aux_inf_reduction_seq
     (h₁ : ∀ n, List.Chain r ((l_seq n).getLast (List.length_pos.mp (hne n))) (l_seq (n + 1))):
     ∀ start, inf_reduction_seq r (aux l_seq hne start) := by
   intro start add
-  simp [List.chain_iff_get, List.chain'_iff_get, List.getLast_eq_get] at h₀ h₁
+  simp [List.chain_iff_get, List.chain'_iff_get, List.getLast_eq_getElem] at h₀ h₁
   induction start, add using aux.induct l_seq hne
   next start add hlt =>
     rw [aux, dif_pos hlt, aux, aux]
@@ -211,7 +210,7 @@ private lemma aux_inf_reduction_seq
 /-- The first reduct list of an infinite reduction sequence forms a chain. -/
 private lemma hchain0 (f: ℕ → α) (hf: inf_reduction_seq r⁺ f): List.Chain' r (inf_trans_lists f hf 0) := by
   obtain ⟨-, hchain⟩ := trans_chain'.spec (hf 0)
-  rw [inf_trans_lists, List.Chain']
+  rw [inf_trans_lists, List.Chain'.eq_def]
   split <;> simp_all
 
 /--
@@ -437,7 +436,7 @@ private lemma trans_idxs_sandwich: ∀n, ∃k, n ∈ Set.Ico (trans_idxs f hgs k
       exact Nat.find_min' hkgt hlt
     omega
 
-
+include hf in
 /-- `trans_seq f hgs` is an infinite r⁺-reduction sequence. -/
 private lemma trans_seq_inf_reduction_seq: inf_reduction_seq r⁺ (trans_seq f hgs) := by
   intro n
@@ -464,6 +463,7 @@ private lemma trans_seq_contains_elems (n): ∃m, (trans_seq f hgs m) = f n := b
   use k, trans_idxs_inbetween _ _ _ _ hk
 
 
+include hf in
 /--
 If `f` satisfies the step guarantee, there must be an infinite r-reduction
 sequence which contains all elements of `f` and starts with `f 0`.

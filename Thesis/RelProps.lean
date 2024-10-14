@@ -22,7 +22,7 @@ postfix:max (priority := high) "≡" => EqvGen
 postfix:max (priority := high) "⁼" => ReflGen
 postfix:max (priority := high) "⁺" => TransGen
 
-variable {α: Type*} [Nonempty α]
+variable {α: Type*}
 variable (r s : Rel α α)
 
 attribute [symm] EqvGen.symm
@@ -300,7 +300,7 @@ lemma reduction_seq.star {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) (
       simp [<-add_assoc]
       apply hseq
       have h₁: (n + k).cast < (m.cast : ℕ∞) := by norm_cast; linarith
-      have h₂: m.cast ≤ N := by exact ENat.le_of_lt_add_one hm
+      have h₂: m.cast ≤ N := by exact Order.le_of_lt_add_one hm
       apply lt_of_lt_of_le h₁ h₂
 
 lemma reduction_seq.inf_iff_inf_reduction_seq:
@@ -575,7 +575,7 @@ lemma inductive_increasing_imp_sn: rel_inductive r ∧ increasing r → strongly
   obtain ⟨a, ha⟩ := hInd hseq'
   simp at ha
 
-  have ha': ∀n, r∗ (seq n) a := fun n ↦ ha n (WithTop.coe_lt_top n)
+  have ha': ∀n, r∗ (seq n) a := fun n ↦ ha n (by simp)
 
   have: ∀k, 1 ≤ f (seq (k + 1)) - f (seq k) := by
     intro k

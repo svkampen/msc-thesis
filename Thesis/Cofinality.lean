@@ -9,7 +9,7 @@ namespace Thesis
 section
 
 variable {α I}
-variable (A: ARS α I) (a: α) [Nonempty α]
+variable (A: ARS α I) (a: α)
 variable (r: α → α → Prop)
 
 /--
@@ -194,7 +194,7 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
     · use m
       constructor
       · cases N
-        · simp; exact WithTop.coe_lt_top m
+        · simp
         · norm_cast at hm ⊢
           omega
       · rfl
@@ -310,6 +310,7 @@ noncomputable def acyclic_of_appears_infinitely
     (hinf: ∃n, appears_infinitely f n) :=
   reduction_seq.refl r (fun n ↦ f <| hinf.choose)
 
+include hcf in
 lemma acyclic_of_appears_infinitely.reduction_seq (hinf: ∃n, appears_infinitely f n):
     cofinal_reduction <| acyclic_of_appears_infinitely r f hinf := by
   intro a
@@ -328,7 +329,6 @@ lemma acyclic_of_appears_infinitely.reduction_seq (hinf: ∃n, appears_infinitel
   simp at this
   rw [<-m_def, <-hn₂.2]
   apply this
-  exact WithTop.coe_lt_top n₂
   omega
 
 section all_appear_finitely
@@ -342,6 +342,7 @@ noncomputable def f_idxs: ℕ → ℕ
 noncomputable def f' (n: ℕ) :=
   f <| f_idxs f hf n
 
+include hseq in
 lemma hseq': reduction_seq r ⊤ (f' f hf) := by
   intro n hn
   rw [f', f', f_idxs]
@@ -349,8 +350,7 @@ lemma hseq': reduction_seq r ⊤ (f' f hf) := by
   have := (hf ((f_idxs f hf n) + 1)).choose_spec
   rw [<-this.1]
 
-  apply hseq
-  apply WithTop.coe_lt_top
+  simp only [ENat.coe_lt_top, hseq]
 
 lemma hf_follows_arg (n: ℕ): (hf n).choose ≥ n := by
   have := (hf n).choose_spec
@@ -367,19 +367,19 @@ lemma f_idxs_follows_arg: f_idxs f hf n ≥ n := by
     have := hf_follows_arg f hf ((f_idxs f hf n) + 1)
     omega
 
+include hcf in
 lemma hseq'.cofinal: cofinal_reduction (hseq' r f hseq hf) := by
   intro a
   obtain ⟨b, ⟨n, -, heq⟩, hab⟩ := hcf a
   simp
-  use n, WithTop.coe_lt_top n
+  use n
   rw [f']
   have: f_idxs f hf n ≥ n := f_idxs_follows_arg f hf
   trans b
   exact hab
   rw [<-heq]
   apply hseq.star
-  apply WithTop.coe_lt_top
-  assumption
+  all_goals simp only [top_add, ENat.coe_lt_top, this]
 
 lemma f_idxs.strictMono: StrictMono (f_idxs f hf) := by
   apply strictMono_nat_of_lt_succ
@@ -390,7 +390,7 @@ lemma f_idxs.strictMono: StrictMono (f_idxs f hf) := by
 
 lemma hseq'.acyclic: (hseq' r f hseq hf).acyclic := by
   simp [reduction_seq.acyclic]
-  rintro n m - - heq
+  rintro n m heq
   simp [f'] at heq
   by_contra h
   wlog h: n < m generalizing n m

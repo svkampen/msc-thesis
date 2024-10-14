@@ -97,7 +97,7 @@ def newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r 
   simp [strongly_normalizing]
   use (f^[·] a)
   intro n
-  rw [Function.iterate_succ', Function.comp]
+  simp only [Function.iterate_succ', Function.comp]
   apply h₁ _ (h₃ n)
 
 end newman_barendregt
@@ -239,10 +239,12 @@ private lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp
   -/
   by_cases h: (ss[n].start = ss[n + 1].end)
   · have hseq₁ := hseq.take n (by omega)
-    simp [SymmSeq.elems_eq_elems'] at hseq₁
-    simp [SymmSeq.elems', @List.getElem_append _ (List.map (fun x ↦ x.start) ss) _ n (by simp; omega)] at hseq₁
+    simp [SymmSeq.elems_eq_elems', SymmSeq.elems'] at hseq₁
+    rw [List.getElem_append_left (by simp; omega), List.getElem_map] at hseq₁
+
     have hseq₂ := hseq.drop (n + 2) (by omega)
     simp [SymmSeq.elems] at hseq₂
+
     rw [h] at hseq₁
 
     let ss' := List.take n ss ++ List.drop (n + 2) ss
