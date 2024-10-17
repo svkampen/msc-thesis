@@ -15,6 +15,23 @@ def _root_.Rel.union: Rel α α → Rel α α → Rel α α :=
 instance _root_.Rel.instUnion: Union (Rel α α) where
   union := Rel.union
 
+def _root_.Rel.union_comm (a b: Rel α α): (a ∪ b) = (b ∪ a) := by
+  ext
+  simp [(· ∪ ·), _root_.Rel.union]
+  tauto
+
+def _root_.Rel.union_left {a b: Rel α α} (x y: α): (a x y) → (a ∪ b) x y := by
+  intro h
+  simp [Union.union]
+  left
+  assumption
+
+def _root_.Rel.union_right {a b: Rel α α} (x y: α): (b x y) → (a ∪ b) x y := by
+  intro h
+  simp [Union.union]
+  right
+  assumption
+
 abbrev _root_.Rel.reflTransGen: Rel α α → Rel α α := ReflTransGen
 
 postfix:max (priority := high) "∗" => Rel.reflTransGen
