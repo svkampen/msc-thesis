@@ -133,6 +133,9 @@ lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := b
       simp_all only [heq, Set.mem_setOf_eq, dite_true, and_self]
     · simp [hstart, f']
 
+lemma cofinality_property.to_conv: cofinality_property A → cofinality_property_conv A
+  := (cp_iff_cp_conv A).mp
+
 noncomputable section countable_confluent_imp_cp
 
 /-- The sequence bₙ as defined in Klop (1980). -/
