@@ -28,6 +28,25 @@ abbrev ARS.union_rel: Rel α α :=
 abbrev ARS.union_lt [PartialOrder I] (A: ARS α I): I → Rel α α :=
   fun i x y ↦ ∃j, j < i ∧ A.rel j x y
 
+lemma ARS.union_lt_max [LinearOrder I] (A: ARS α I) (a b: α):
+    A.union_lt i a b → A.union_lt (max i j) a b := by
+  intro h
+  cases (max_cases i j) with
+  | inl heq => rwa [heq.1]
+  | inr heq =>
+    rw [heq.1]
+    obtain ⟨k, hk⟩ := h
+    use k, ?_, hk.2
+    trans i <;> aesop
+
+lemma ARS.union_lt_trans [LinearOrder I] (A: ARS α I) (a b: α) {i j} (hij: i ≤ j):
+    A.union_lt i a b → A.union_lt j a b := by
+  rintro ⟨k, hklt, hkrel⟩
+  use k, ?_, hkrel
+  apply lt_of_lt_of_le hklt hij
+
+
+
 /--
 The convertability relation ≡ generated from the union of ARS relations.
 Note that this is denoted using `=` in TeReSe, which we use for true equality.
