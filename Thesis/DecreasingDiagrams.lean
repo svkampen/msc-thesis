@@ -2,12 +2,13 @@ import Mathlib.Logic.Relation
 import Mathlib.Tactic
 import Thesis.RelProps
 import Thesis.ARS
+import Thesis.Cofinality
 
 namespace Thesis
 
-variable {α: Type}
+variable {α I: Type}
 
-variable (A: ARS α Unit)
+variable (A: ARS α I)
 
 open Relation
 
@@ -26,20 +27,48 @@ def locally_decreasing [PartialOrder I] [IsWellFounded I (· < ·)] (B: ARS α I
     ∃d, ((B.union_lt i)∗ • (B.rel j)⁼ • (B.union_lt i ∪ B.union_lt j)∗) b d ∧
         ((B.union_lt j)∗ • (B.rel i)⁼ • (B.union_lt i ∪ B.union_lt j)∗) c d
 
+def stronger_decreasing (B: ARS α ℕ) :=
+  ∀a b c i j, B.rel i a b ∧ B.rel j a c →
+    ∃d, ((B.union_lt (max i j))∗) b d ∧ ((B.union_lt (max i j))∗) c d
+
+lemma stronger_decreasing_imp_locally_decreasing (B: ARS α ℕ):
+    stronger_decreasing B → locally_decreasing B := by
+  intro h
+  rintro a b c i j ⟨hab, hac⟩
+  obtain ⟨d, hd₁, hd₂⟩ := h a b c i j ⟨hab, hac⟩
+  use d
+  constructor
+  · use b, (by rfl), b, (by rfl)
+    by_cases h: max i j = j
+    · rw [h] at hd₁
+      apply ReflTransGen.mono Rel.union_right hd₁
+    · have: max i j = i := by
+        omega
+      rw [this] at hd₁
+      apply ReflTransGen.mono Rel.union_left hd₁
+  · use c, (by rfl), c, (by rfl)
+    by_cases h: max i j = j
+    · rw [h] at hd₂
+      apply ReflTransGen.mono Rel.union_right hd₂
+    · have: max i j = i := by
+        omega
+      rw [this] at hd₂
+      apply ReflTransGen.mono Rel.union_left hd₂
+
 /--
 An ARS `A` is called Decreasing Church-Rosser (DCR) if there exists a reduction-
 equivalent ARS `B` which is locally decreasing.
 -/
-def DCR.{u} :=
-  ∃(I: Type u) (_: PartialOrder I) (_: IsWellFounded I (· < ·)) (B: ARS α I),
-    A.rel () = B.union_rel ∧ locally_decreasing B
+def DCR :=
+  ∃(I: Type) (_: PartialOrder I) (_: IsWellFounded I (· < ·)) (B: ARS α I),
+    A.union_rel = B.union_rel ∧ locally_decreasing B
 
 /--
 An ARS `A` is DCR with n labels if there exists a reduction-equivalent ARS `B`
 which is indexed by `{ i | i < n }` which is locally decreasing.
 -/
-def DCRn (n: Ordinal) (A: ARS α Unit) :=
-  ∃(B: ARS α { i | i < n }), A.rel () = B.union_rel ∧ locally_decreasing B
+def DCRn (n: ℕ) (A: ARS α I) :=
+  ∃(B: ARS α { i | i < n }), A.union_rel = B.union_rel ∧ locally_decreasing B
 
 /--
 If an ARS is DCRn, it is DCR.
@@ -47,12 +76,14 @@ If an ARS is DCRn, it is DCR.
 It is somewhat unclear to me why we need these explicit universe annotations,
 and Lean can't just figure it out on its own, but I suppose it doesn't matter.
 -/
-lemma DCRn_imp_DCR: DCRn.{u} n A → DCR.{u + 1} A := by
+lemma DCRn_imp_DCR: DCRn n A → DCR A := by
   intro h
   obtain ⟨B, hb⟩ := h
   simp [DCR]
-  use {b | b < n}
-  use inferInstance, inferInstance, B
+  apply Exists.intro
+  apply Exists.intro
+  apply Exists.intro
+  use B
 
 /--
 If all components of an ARS are locally decreasing, the whole ARS is locally decreasing.
@@ -100,8 +131,8 @@ lemma locally_decreasing_components (n: ℕ) (B: ARS α { i | i < n }):
       exact ReflTransGen.lift Subtype.val (fun _ _ a ↦ a) h
 
 /-- Proof left as an exercise to the reader ;) -/
-lemma DCR_imp_confluence: DCR A → confluent (A.rel ()) := by
-  sorry
+-- lemma DCR_imp_confluence: DCR A → confluent (A.rel ()) := by
+--   sorry
 
 -- trivial example; i should find something actually interesting.
 def example_ars: ARS ℕ Unit where
@@ -136,61 +167,405 @@ example: DCRn 1 example_ars := by
 
 
 -- Formalization of Proposition 14.2.30 from Terese.
-section prop_14_2_30
+namespace Prop14230
+
+section componentwise
+
+variable
+  {A: ARS α I}
+  (C: Component A)
+  (hcp: cofinality_property_conv A)
 
 @[simp]
-def is_reduction_seq_from (a b: α) (f: ℕ → α) (N: ℕ) :=
-  f 0 = a ∧ f N = b ∧ reduction_seq A.union_rel N f
-
--- There exists a reduction sequence from a to b
-def exists_red_seq (a b: α): Prop :=
-  ∃N f, is_reduction_seq_from A a b f N
+def is_reduction_seq_from (r: Rel α α) (a b: α) (f: ℕ → α) (N: ℕ) :=
+  f 0 = a ∧ f N = b ∧ reduction_seq r N f
 
 /--
-For any element a, and b in the reduction graph of a, there exists some
-reduction seqence from a to b.
+If some element in X is a reduct of a, there must be a reduction sequence
+from a to some x in X.
 -/
-lemma exists_red_seq_in_reduction_graph (a: α) (b: {b // A.union_rel∗ a b }):
-    exists_red_seq A a b := by
-  have ⟨b, hb⟩ := b
-  induction hb with
+lemma exists_red_seq_set (X: Set α) (hX: ∃x ∈ X, r∗ a x):
+    ∃N f x, x ∈ X ∧ is_reduction_seq_from r a x f N := by
+  have ⟨x, hmem, hx⟩ := hX
+  induction hx using ReflTransGen.head_induction_on with
   | refl =>
-    use 0, (fun n ↦ a)
-    simp [reduction_seq]
-  | @tail b' c hseq hstep ih =>
-    obtain ⟨N, f, hf₁, hf₂, hf₃⟩ := ih
-    let f' : ℕ → α := fun n ↦ if n ≤ N then f n else c
-    use N + 1, f'
+    use 0, (fun n ↦ x), x, hmem
+    simp [is_reduction_seq_from]
+    apply reduction_seq.refl
+  | @head b c rel₁ rel₂ ih =>
+    have: ∃x ∈ X, r∗ c x := by use x
+    have ⟨N, f, x', hx', hseq⟩ := ih this
+    let f' := fun n ↦ if n = 0 then b else f (n - 1)
+    use N + 1, f', x', hx'
     and_intros
-    · simp only [zero_le, ↓reduceIte, hf₁, f']
-    · simp only [add_le_iff_nonpos_right, nonpos_iff_eq_zero, one_ne_zero, ↓reduceIte, f']
-    · unfold reduction_seq at *
-      intro n hn
-      by_cases hn': (n = N)
-      · subst hn'
-        simp [f', hf₂]
-        exact hstep
-      · norm_cast at *
-        have hn: n < N := by omega
-        have hn₁: n ≤ N := by omega
-        have hn₂: n + 1 ≤ N := by omega
-        simp only [↓reduceIte, hn₁, hn₂, hf₃ _ hn, f']
+    · simp only [↓reduceIte, f']
+    · simp [f']
+      exact hseq.2.1
+    · intro n hn
+      cases n
+      · simp [f', hseq.1, rel₁]
+      · simp [f']
+        exact hseq.2.2 _ (by norm_cast at hn ⊢; omega)
 
 open Classical in
-noncomputable def d (a: α) (b: { b // A.union_rel∗ a b }): ℕ
-  := Nat.find <| exists_red_seq_in_reduction_graph A a b
+noncomputable def dX (a: α) (X: Set α) (hX: ∃x ∈ X, r∗ a x)
+  := Nat.findX <| exists_red_seq_set X hX
 
-open Classical in
-noncomputable def dX' (a: α) (X: Set { b // A.union_rel∗ a b}) (hX: X.Nonempty): ℕ
-  := Nat.find (Set.image_nonempty.mpr hX : (d A a '' X).Nonempty)
+lemma dX.spec (X: Set α) (hX: ∃x ∈ X, r∗ a x):
+    ∃f x, x ∈ X ∧ is_reduction_seq_from r a x f (dX a X hX) :=
+  (dX a X hX).prop.left
 
-noncomputable def dX (a: α) (X: Set α) (hX: ∃x ∈ X, A.union_rel∗ a x): ℕ
-  := dX' A a {x | (x.val ∈ X)} (by have ⟨x, hx₁, hx₂⟩ := hX; use ⟨x, hx₂⟩, hx₁)
+lemma dX.min (X: Set α) (hX: ∃x ∈ X, r∗ a x):
+    ∀ m < ↑(dX a X hX), ¬∃ f, ∃ x ∈ X, is_reduction_seq_from r a x f m :=
+  (dX a X hX).prop.right
+
+include hcp in
+lemma exists_dcr_main_road:
+    ∃N f, ∃(hseq: reduction_seq C.ars.union_rel N f),
+      cofinal_reduction hseq ∧ hseq.acyclic := by
+  obtain ⟨x, hx⟩ := C.component_nonempty
+
+  have hxeq: C = (A.component x) := by
+    exact Eq.symm (component_mem_eq hx)
+
+  obtain ⟨N, f, hseq, hcf, -⟩ := hxeq ▸ hcp x
+  obtain ⟨N, f, hseq, hcf, hacyclic⟩ := cofinal_reduction_acyclic hseq hcf
+  use N, f, hseq
+
+def main_road :=
+  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose
+
+def main_road_cr :=
+  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose_spec.left
+
+noncomputable def main_road_len :=
+  (exists_dcr_main_road C hcp).choose
+
+noncomputable def main_road_f :=
+  (exists_dcr_main_road C hcp).choose_spec.choose
+
+def main_road_acyclic :=
+  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose_spec.right
+
+lemma dcr_main_road_heq (c₁ c₂: Component A)
+    (hc: c₁ = c₂): HEq (main_road c₁ hcp) (main_road c₂ hcp) := by
+  rw [hc]
+
+def red_step_in_seq {f: ℕ → α} (b c: α) (hseq: reduction_seq r N f) :=
+  ∃(n: ℕ) (hn: n < N), b = f n ∧ c = f (n + 1)
+
+lemma red_step_in_seq.is_red_step {b c: α} {r: Rel α α} {f: ℕ → α} {hseq: reduction_seq r N f}:
+    red_step_in_seq b c hseq → (r b c) := by
+  rintro ⟨n, ⟨hn, hb, hc⟩⟩
+  aesop
+
+def dcr_component_ars: ARS C.Subtype ℕ where
+  rel := fun n b c ↦
+    match n with
+      | 0 => red_step_in_seq b c (main_road C hcp)
+      | n + 1 => C.ars.union_rel b c ∧ n = dX c (main_road C hcp).elems ((main_road_cr C hcp) c)
+
+/--
+If `f (n + k)` is within our sequence, we can take `k` `0`-steps from `f n` to `f (n + k)`.
+-/
+lemma steps_along_hseq {n k: ℕ} (hk: n + k < (main_road_len C hcp) + 1):
+    ((dcr_component_ars C hcp).rel 0)∗ ((main_road_f C hcp) n) ((main_road_f C hcp) (n + k)) := by
+  set N := (main_road_len C hcp) with N_def
+  set f := (main_road_f C hcp) with f_def
+
+  induction k generalizing n with
+  | zero => rfl
+  | succ k ih =>
+    have hlt: n + k < N := by
+      cases h: N <;> (rw [h] at hk ih N_def; norm_cast at *)
+      · apply WithTop.coe_lt_top
+      · omega
+    have hlt': n + k < N + 1 := lt_of_lt_of_le hlt le_self_add
+    apply ReflTransGen.tail (ih hlt')
+    use (n + k)
+    simp_all only [SubARS.Subtype, Nat.cast_add, Nat.cast_one, exists_and_left, exists_prop, N, f]
+    and_intros <;> first | rfl | exact hlt
+
+/--
+`dcr_component_ars` is reduction-equivalent to the component of A it stems from.
+-/
+lemma dcr_component_ars.reduction_equivalent (b c: C.Subtype):
+    C.ars.union_rel b c ↔ (dcr_component_ars C hcp).union_rel b c := by
+  constructor <;> intro h
+  · simp only [dcr_component_ars, ARS.union_rel]
+
+    let n := dX c (main_road C hcp).elems (main_road_cr C hcp c)
+    use (n + 1)
+  · simp only [dcr_component_ars, ARS.union_rel] at h
+    obtain ⟨n, hn⟩ := h
+    split at hn
+    · exact hn.is_red_step
+    · tauto
+
+/--
+One of the main parts of the proof for 14.2.30: if the distance from `b` to some
+`x ∈ X` is `n`, there is a reduction sequence from `b` to `x` using steps with indices
+smaller than `n + 1`.
+-/
+lemma dX_imp_red_seq (n: ℕ) (b: C.Subtype):
+    dX b (main_road C hcp).elems (main_road_cr C hcp b) = n →
+      ∃x f, x ∈ (main_road C hcp).elems ∧ f 0 = b ∧ f n = x ∧
+      reduction_seq ((dcr_component_ars C hcp).union_lt (n + 1)) n f := by
+  let hcr := main_road_cr C hcp
+  let hseq := main_road C hcp
+
+  intro h
+  induction n generalizing b with
+  | zero =>
+    obtain ⟨f, x, hfx⟩ := dX.spec hseq.elems (hcr b)
+    rw [h] at hfx
+    simp at hfx
+    obtain ⟨hmem, hfeq₁, hfeq₂, hseq⟩ := hfx
+    use x, f, hmem, hfeq₁, hfeq₂
+    apply reduction_seq.refl
+  | succ n ih =>
+    obtain ⟨f, x, hmem₁, heq₁, heq₂, hseq'⟩ := dX.spec hseq.elems (hcr b)
+
+    have hpath: ∃x ∈ (main_road C hcp).elems, C.ars.union_rel∗ (f 1) x := by
+      use x, hmem₁
+      rw [<-heq₂]
+      apply hseq'.star
+      norm_cast
+      norm_num
+      omega
+
+    have: (dX (f 1) _ hpath) = n := by
+      have hnot_lt: ((dX (f 1) _ hpath) ≥ n) := by
+        -- if dX (f 1) < n, then dX (f 0) < n + 1, contradiction
+        by_contra! hlt
+
+        let n' := dX (f 1) _ hpath
+
+        have ⟨f', x', hx'mem, hx'seq₁, hx'seq₂, hx'seq₃⟩ := dX.spec _ hpath
+        have hmin := dX.min _ (hcr b) (n' + 1) (by dsimp only [h, n']; omega)
+        push_neg at hmin
+
+        let total_f' := fun n ↦ if n = 0 then b else f' (n - 1)
+
+        apply hmin total_f' x' hx'mem
+
+        and_intros
+        · simp [total_f']
+        · simp only [is_reduction_seq_from,
+          AddLeftCancelMonoid.add_eq_zero, one_ne_zero, and_false, ↓reduceIte,
+          add_tsub_cancel_right, total_f', n']
+          exact hx'seq₂
+        · intro n hn
+          norm_cast at hn
+          cases n with
+          | zero =>
+            simp [total_f', hx'seq₁, <-heq₁]
+            apply hseq'
+            rw [h]
+            norm_cast
+            norm_num
+          | succ n =>
+            simp [total_f']
+            apply hx'seq₃
+            norm_cast
+            dsimp only [n'] at hn
+            linarith
+
+      have hnot_gt: ((dX (f 1) _ hpath) ≤ n) := by
+        -- if dX (f 1) > n, then it is not minimal, contradiction
+        by_contra! hgt
+        have := dX.min _ hpath n (by omega)
+        push_neg at this
+        let sub_f := fun n ↦ f (n + 1)
+        apply this sub_f x hmem₁
+
+        and_intros
+        · simp [sub_f]
+        · simp only [<- h, is_reduction_seq_from, heq₂, sub_f]
+        · intro n hn
+          norm_cast at hn
+          simp [sub_f]
+          apply hseq'
+          rw [h]
+          norm_cast
+          linarith
+
+      exact Nat.le_antisymm hnot_gt hnot_lt
+
+    have hrel: (dcr_component_ars C hcp).rel (n + 1) b (f 1) := by
+      simp only [dcr_component_ars]
+      constructor
+      · rw [<-heq₁]
+        apply hseq'
+        rw [h]
+        norm_num
+      · exact this.symm
+
+    have ⟨x, f', hmem, tail_heq₁, tail_heq₂, tail_hseq⟩ := ih (f 1) this
+
+    -- sketch: we now have the tail of the sequence, need to prepend a single
+    -- step of b -> f 1 (hrel)
+
+    let total_f := fun n ↦ if n = 0 then f 0 else f' (n - 1)
+
+    use x, total_f, hmem, heq₁, tail_heq₂
+
+    intro i hi
+    cases i with
+    | zero =>
+      simp [total_f, tail_heq₁]
+      use n + 1, by omega
+      rw [heq₁]
+      exact hrel
+    | succ i =>
+      dsimp only [SubARS.Subtype, AddLeftCancelMonoid.add_eq_zero, one_ne_zero, and_false,
+        ↓dreduceIte, Nat.add_one_sub_one, and_self, total_f]
+      obtain ⟨idx, hidx⟩ := tail_hseq i (by norm_cast at hi ⊢; omega)
+      use idx, (by omega), hidx.right
+
+lemma dcr_component_ars.is_stronger_decreasing:
+    stronger_decreasing (dcr_component_ars C hcp) := by
+  rintro b c d i j ⟨hbc, hbd⟩
+
+  set N := main_road_len C hcp with N_def
+  set f := main_road_f C hcp with f_def
+
+  wlog hij: i ≤ j generalizing i j c d
+  · have ⟨d, hd⟩ := this d c j i hbd hbc (by omega)
+    use d
+    rw [max_comm] at hd
+    tauto
+
+  have htail: ∀(x y: ℕ) (hx: x < N + 1) (hy: y < N + 1), ((dcr_component_ars C hcp).rel 0)∗ (f x) (f (max x y)) := by
+    intro x y hx hy
+    have ⟨k, hk⟩: ∃k, (max x y) = x + k := by
+      apply Nat.exists_eq_add_of_le
+      omega
+
+    rw [hk]
+    apply steps_along_hseq
+    norm_cast
+    rw [<-hk]
+
+    rw [<-N_def]
+    revert hx hy
+    cases N
+    · simp
+    · norm_cast at *
+      omega
+
+  rcases i with (- | i) <;> rcases j with (- | j)
+  · -- coincide, hseq is acyclic
+    simp [dcr_component_ars, red_step_in_seq] at hbc hbd
+    obtain ⟨n, hbeq, hn, hceq⟩ := hbc
+    obtain ⟨m, hbeq', hm, hdeq⟩ := hbd
+    have: c = d := by
+      have heq := (main_road_acyclic C hcp) n m hn hm (by aesop)
+      subst heq
+      rw [hceq, hdeq]
+    subst this
+    use c
+  · -- i = 0, j > 0
+    dsimp only [dcr_component_ars, red_step_in_seq] at hbd hbc
+    obtain ⟨x, g, hxmem, hdeq, hxeq, hseq'⟩ := dX_imp_red_seq C hcp _ _ hbd.2.symm
+
+    simp at hxmem
+
+    obtain ⟨idx₁, hidx₁, heq_idx₁⟩ := hxmem
+    obtain ⟨idx₂, hidx₂, heq_idx₂⟩ := hbc
+
+    let hend_idx := max idx₁ (idx₂ + 1)
+    use f hend_idx
+
+    have hctail: ((dcr_component_ars C hcp).rel 0)∗ c (f hend_idx) := by
+      rw [heq_idx₂.2]
+      have := htail (idx₂ + 1) _ ?_ hidx₁
+      rw [max_comm] at this
+      apply this
+      push_cast
+      exact WithTop.add_lt_add_right WithTop.one_ne_top hidx₂
+
+    have hxtail: ((dcr_component_ars C hcp).rel 0)∗ x (f hend_idx) := by
+      rw [<-heq_idx₁]
+      have := htail idx₁ (idx₂ + 1) hidx₁
+      apply this
+      push_cast
+      exact WithTop.add_lt_add_right WithTop.one_ne_top hidx₂
+
+    constructor
+    · apply ReflTransGen.mono _ hctail
+      intro x y h
+      use 0, by omega
+    · trans x
+      · rw [<-hdeq, <-hxeq]
+        apply hseq'.star
+        norm_cast; norm_num; norm_num
+      · apply ReflTransGen.mono _ hxtail
+        intro x y h
+        use 0, by omega
+
+  · contradiction
+  · -- i > 0, j > 0; they both lead to some element a_m, a_n in the CRS
+    -- so they converge at a_(max m n).
+    dsimp only [dcr_component_ars] at hbc hbd
+    obtain ⟨x, g, hxmem, hdeq, hxeq, hseq₁⟩ := dX_imp_red_seq C hcp _ _ hbd.2.symm
+    obtain ⟨y, h, hymem, hceq, hyeq, hseq₂⟩ := dX_imp_red_seq C hcp _ _ hbc.2.symm
+
+    simp at hxmem hymem
+    obtain ⟨idx₁, hidx₁, heq_idx₁⟩ := hxmem
+    obtain ⟨idx₂, hidx₂, heq_idx₂⟩ := hymem
+
+    use f (max idx₁ idx₂)
+    constructor <;> [
+      (let elem := y; let eq₁ := hceq; let eq₂ := hyeq; let seq := hseq₂;
+       let i₁ := hidx₂; let i₂ := hidx₁; let ieq := heq_idx₂);
+      (let elem := x; let eq₁ := hdeq; let eq₂ := hxeq; let seq := hseq₁;
+       let i₁ := hidx₁; let i₂ := hidx₂; let ieq := heq_idx₁; rw [max_comm])]
+
+    all_goals (
+      trans elem
+      · simp_rw [elem, <-eq₁, <-eq₂]
+        apply ReflTransGen.mono (dcr_component_ars C hcp).union_lt_max
+        apply seq.star
+        norm_cast
+        all_goals omega
+      · have := htail _ _ i₁ i₂
+        rw [f_def, main_road_f, ieq] at this
+        simp [max_comm] at this
+        apply ReflTransGen.mono _ this
+        intro x y h
+        use 0, by omega)
+
+/--
+`dcr_component_ars` is locally decreasing.
+-/
+lemma dcr_component_ars.is_ld:
+    locally_decreasing (dcr_component_ars C hcp) := by
+  apply stronger_decreasing_imp_locally_decreasing
+  exact is_stronger_decreasing C hcp
+
+/--
+If A has the cofinality property, any component of A is DCR.
+-/
+def dcr_component (hcp: cofinality_property A): ∀(C: Component A), DCR C.ars := by
+  intro C
+  -- we use the natural numbers as labels, with the expected partial order
+  use ℕ, inferInstance, inferInstance
+
+  use dcr_component_ars C hcp.to_conv
+  constructor
+  · ext
+    rw [<-dcr_component_ars.reduction_equivalent]
+  · apply dcr_component_ars.is_ld
+
+end componentwise
 
 
 
-end prop_14_2_30
 
 
+
+
+end Prop14230
 
 end Thesis
