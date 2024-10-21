@@ -51,7 +51,7 @@ lemma ARS.union_lt_trans [LinearOrder I] (A: ARS α I) (a b: α) {i j} (hij: i �
 The convertability relation ≡ generated from the union of ARS relations.
 Note that this is denoted using `=` in TeReSe, which we use for true equality.
 -/
-def ARS.conv: Rel α α :=
+abbrev ARS.conv: Rel α α :=
   EqvGen A.union_rel
 
 /-- `x ⇒ y` means x one-step reduces to y. -/
