@@ -9,3 +9,4 @@ import Thesis.RelProps
 import Thesis.SymmSeq
 import Thesis.InfReductionSeq
 import Thesis.DecreasingDiagrams
+import Thesis.Misc

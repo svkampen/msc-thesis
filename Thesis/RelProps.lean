@@ -1,38 +1,13 @@
 import Mathlib.Logic.Relation
 import Lean.Meta.Tactic.Symm
 import Mathlib.Tactic
+import Thesis.Misc
 
 namespace Thesis
 
 open Relation
 
 section rel_properties
-
-@[simp]
-def _root_.Rel.union: Rel α α → Rel α α → Rel α α :=
-  fun r₁ r₂ x y ↦ (r₁ x y) ∨ (r₂ x y)
-
-instance _root_.Rel.instUnion: Union (Rel α α) where
-  union := Rel.union
-
-def _root_.Rel.union_comm (a b: Rel α α): (a ∪ b) = (b ∪ a) := by
-  ext
-  simp [(· ∪ ·), _root_.Rel.union]
-  tauto
-
-def _root_.Rel.union_left {a b: Rel α α} (x y: α): (a x y) → (a ∪ b) x y := by
-  intro h
-  simp [Union.union]
-  left
-  assumption
-
-def _root_.Rel.union_right {a b: Rel α α} (x y: α): (b x y) → (a ∪ b) x y := by
-  intro h
-  simp [Union.union]
-  right
-  assumption
-
-abbrev _root_.Rel.reflTransGen: Rel α α → Rel α α := ReflTransGen
 
 postfix:max (priority := high) "∗" => Rel.reflTransGen
 postfix:max (priority := high) "≡" => EqvGen
@@ -41,8 +16,6 @@ postfix:max (priority := high) "⁺" => TransGen
 
 variable {α: Type*}
 variable (r s : Rel α α)
-
-attribute [symm] EqvGen.symm
 
 /-- Taking the inverse of a relation commutes with reflexive-transitive closure. -/
 @[simp]
@@ -61,14 +34,6 @@ lemma rel_inv_plus {r: Rel α α}: r.inv⁺ x y ↔ r⁺ y x := by
     induction h
     · apply TransGen.single; assumption
     · apply TransGen.head <;> assumption
-
-
-/-- The reflexive-transitive closure of a relation is a subset of the equivalence closure. -/
-lemma _root_.Relation.ReflTransGen.to_equiv {r: Rel α α} {a b} (h: (ReflTransGen r) a b): (EqvGen r) a b := by
-  induction h using ReflTransGen.trans_induction_on with
-  | ih₁ a => exact EqvGen.refl a
-  | ih₂ h => exact EqvGen.rel _ _ h
-  | ih₃ _ _ he₁ he₂ => exact EqvGen.trans _ _ _ he₁ he₂
 
 /--
 Two relations `r` and `s` _commute weakly_ if `r a b` and `s a c`
