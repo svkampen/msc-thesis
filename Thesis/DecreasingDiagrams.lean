@@ -560,10 +560,93 @@ def dcr_component (hcp: cofinality_property A): ∀(C: Component A), DCR C.ars :
 
 end componentwise
 
+open Classical in
+def dcr_total_ars (hcp': cofinality_property_conv A): ARS α ℕ where
+  rel := fun n b c ↦
+    ∃(C: Component A) (h: C.p b ∧ C.p c),
+      (dcr_component_ars C hcp').rel n ⟨b, h.1⟩ ⟨c, h.2⟩
 
 
+def dcr_total.reduction_equivalent:
+    A.union_rel = (dcr_total_ars A hcp').union_rel := by
+  ext a b
+  constructor
+  · intro h
+    simp [ARS.union_rel, dcr_total_ars]
+
+    have hbmem: (A.component a).p b := EqvGen.rel _ _ h
+
+    let a': (A.component a).Subtype := ⟨a, A.component_root_mem⟩
+    let b': (A.component a).Subtype := ⟨b, hbmem⟩
+
+    have := dcr_component_ars.reduction_equivalent (A.component a) hcp' a' b'
+    rw [SubARS.restrict_union] at this
+    obtain ⟨i, h⟩ := this.mp h
+
+    use i, (A.component a), ⟨a'.prop, b'.prop⟩
+  · intro h
+    rcases h with ⟨i, C, ⟨ha, hb⟩, hrel⟩
+    have: (dcr_component_ars C hcp').union_rel ⟨a, ha⟩ ⟨b, hb⟩ := ⟨i, hrel⟩
+    rwa [<-dcr_component_ars.reduction_equivalent, SubARS.restrict_union] at this
 
 
+/--
+The dcr_total_ars is locally decreasing. This follows from the fact that each
+component is locally decreasing, any diverging steps z <-j x i-> y must be
+within one component, and thus have a decreasing diagram from z ->> d <<- y.
+-/
+def dcr_total.is_ld:
+    locally_decreasing (dcr_total_ars A hcp') := by
+  apply stronger_decreasing_imp_locally_decreasing
+  intro x y z i j ⟨hxy, hxz⟩
+
+  -- Without loss of generality i ≤ j, by symmetry of the diverging steps.
+  wlog hij: i ≤ j generalizing i j y z
+  · have ⟨d, hd⟩ := this z y j i hxz hxy (by omega)
+    aesop (add norm max_comm)
+
+  -- A step within a component also exists within the total ARS.
+  have hunion_lt {C: Component A} (i) (a b):
+      (dcr_component_ars C hcp').union_lt i a b → (dcr_total_ars A hcp').union_lt i a b := by
+    rintro ⟨j, hjlt, hjrel⟩
+    use j, hjlt, C
+    aesop
+
+  -- x i-> y in some component C, and x j-> z in some component C₂
+  simp [dcr_total_ars] at hxy hxz
+  obtain ⟨C, ⟨hx, hy⟩, hxy⟩ := hxy
+  obtain ⟨C₂, ⟨hx₂, hz⟩, hxz⟩ := hxz
+
+  -- because x is in both components, the components must be the same.
+  have heq: C = C₂ := component_unique x hx hx₂
+  subst heq
+
+  -- then by LD of an individual component (actually SD, but who's counting),
+  -- there is a reduct d of y and z, which we can reach using only steps `<j`.
+  obtain ⟨d, hyd, hzd⟩
+    := dcr_component_ars.is_stronger_decreasing C hcp' ⟨x, hx⟩ ⟨y, hy⟩ ⟨z, hz⟩ i j ⟨hxy, hxz⟩
+
+  use d
+  simp [hij] at hyd hzd ⊢
+  rw [(by simp: y = Subtype.val ⟨y, hy⟩), (by simp: z = Subtype.val ⟨z, hz⟩)]
+
+  -- the reduction sequences from y to d and z to d follow by lifting
+  -- `hyd` and `hzd` from the component into the total ARS.
+  constructor <;>
+  · apply ReflTransGen.lift _ (hunion_lt j) _
+    assumption
+
+
+/--
+Proposition 14.2.30: Any ARS with the cofinality property is DCR.
+-/
+def cp_imp_dcr (hcp: cofinality_property A): DCR A := by
+  use ℕ, inferInstance, inferInstance
+
+  use (dcr_total_ars A hcp.to_conv)
+  constructor
+  · exact dcr_total.reduction_equivalent A
+  · exact dcr_total.is_ld A
 
 
 end Prop14230
