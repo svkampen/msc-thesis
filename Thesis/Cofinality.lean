@@ -236,6 +236,10 @@ section cyclic_finite
 
 variable {r: Rel α α} {f: ℕ → α} {N: ℕ} (hseq: reduction_seq r N f)
 
+/--
+The acyclic version of a finite cofinal reduction sequence is simply the
+last element of that reduction sequence.
+-/
 def acyclic_of_finite :=
   reduction_seq.refl r (fun n ↦ hseq.end)
 
@@ -435,6 +439,8 @@ end all_appear_finitely
 end cyclic_infinite
 
 section cyclic
+
+variable {r: Rel α α}
 
 /-- Any (cyclic) cofinal reduction sequence has an acyclic counterpart. -/
 lemma cofinal_reduction_acyclic (hseq: reduction_seq r N f) (hcf: cofinal_reduction hseq):
