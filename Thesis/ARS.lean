@@ -79,7 +79,7 @@ structure SubARS (B: ARS β I) where
   closed: ∀i a b, p a ∧ B.rel i a b → p b
 
 @[simp]
-abbrev SubARS.Subtype (S: SubARS A) := {b // S.p b}
+abbrev SubARS.Subtype {A: ARS β I} (S: SubARS A) := {b // S.p b}
 
 lemma SubARS.restrict_union {A: ARS α I} (S: SubARS A): (∀a b, S.ars.union_rel a b ↔ A.union_rel a b) := by
   intro a b
