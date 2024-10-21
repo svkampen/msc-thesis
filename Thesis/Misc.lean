@@ -40,3 +40,5 @@ lemma _root_.Relation.ReflTransGen.to_equiv {r: Rel α α} {a b} (h: (ReflTransG
   | ih₁ a => exact EqvGen.refl a
   | ih₂ h => exact EqvGen.rel _ _ h
   | ih₃ _ _ he₁ he₂ => exact EqvGen.trans _ _ _ he₁ he₂
+
+attribute [trans] EqvGen.trans

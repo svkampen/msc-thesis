@@ -137,47 +137,76 @@ def ARS.reduction_graph (B: ARS β I) (b: β) : SubARS B := by
 lemma ARS.reduction_graph_p: (A.reduction_graph a).p = (A.union_rel∗ a ·) := by
   simp [ARS.reduction_graph, ARS.gen_sub]
 
+@[ext]
+structure Component extends SubARS A where
+  component_restrict: ∀{a b}, p a → p b → A.conv a b
+  component_closed: ∀{a b}, p a → A.conv a b → p b
+  component_nonempty: ∃a, p a
+
 /--
 The component of `a ∈ α` w.r.t. conversion is the sub-ARS `component a`
 with set of elements { a' | a ≡ a' } and the reduction relation restricted
 to this convertability class.
 -/
-def ARS.component (a: α): SubARS A where
+def ARS.component (a: α): Component A where
   p := (A.conv a ·)
   ars := ⟨fun i a b ↦ A.rel i a b⟩ -- reduction relation is the same as A, modulo types
   restrict := by simp
   closed := by
     rintro i x y ⟨hconv, hstep⟩
-    apply EqvGen.trans _ _ _ hconv
-    apply EqvGen.rel _ _ (Exists.intro i hstep)
+    exact EqvGen.trans a x y hconv <| EqvGen.rel x y ⟨i, hstep⟩
+  component_restrict := (EqvGen.trans _ _ _ ·.symm)
+  component_closed := EqvGen.trans _ _ _
+  component_nonempty := ⟨a, by rfl⟩
 
-def ARS.components: Set (SubARS A) :=
+def ARS.components: Set (Component A) :=
   A.component '' Set.univ
 
-lemma component_unique (c₁ c₂: SubARS A) (hc₁: c₁ ∈ A.components) (hc₂: c₂ ∈ A.components) (a: α):
-    (c₁.p a ∧ c₂.p a) → c₁ = c₂ := by
-  rintro ⟨ha₁, ha₂⟩
-  obtain ⟨x, _, rfl⟩ := hc₁
-  obtain ⟨y, _, rfl⟩ := hc₂
-  have prop_eq: (A.component x).p = (A.component y).p := by
+lemma component_unique {A: ARS α I} {c₁ c₂: Component A} (a: α):
+    c₁.p a → c₂.p a → c₁ = c₂ := by
+  rintro ha₁ ha₂
+  have prop_eq: c₁.p = c₂.p := by
     ext b
-    simp [ARS.component, ARS.conv] at ha₁ ha₂ ⊢
-    constructor <;>
-    · intro hb
-      apply EqvGen.trans _ _ _ (by assumption)
-      apply EqvGen.trans _ _ _ _ hb
-      exact EqvGen.symm _ _ (by assumption)
+    constructor
+    · exact fun hb ↦ c₂.component_closed ha₂ (c₁.component_restrict ha₁ hb)
+    · exact fun hb ↦ c₁.component_closed ha₁ (c₂.component_restrict ha₂ hb)
   ext
   · simp only [prop_eq]
-  · simp only [ARS.component]
-    -- the mathematical argument here is simple; because the subtypes
-    -- contain the same elements, the types are the same, and the rewrite
-    -- relations are just inherited from the parent ARS A, so both SubARS'es
-    -- are equivalent. Lean can't easily figure this out, but applications of
-    -- the congr(!) tactic, which uses congruence lemma's, can sometimes help[1]
-    -- [1]: https://leanprover.zulipchat.com/#narrow/stream/270676-lean4/topic/How.20to.20prove.20HEq.20between.20dependent.20functions.3F/near/430604617
-    congr! 2 -- for some reason, this needs to be split up into 2/4.
-    congr! 4 -- don't ask me why. the order of applications matters, I guess.
+  · congr! 1
+    ext
+    · exact Eq.to_iff (congrFun prop_eq _)
+    · have: ∀i a b, c₁.ars.rel i a b → c₂.ars.rel i ⟨a.val, by rw [<-prop_eq];exact a.prop⟩ ⟨b.val, by rw [<-prop_eq];exact b.prop⟩ := by
+        intro i a b
+        rw [c₁.restrict, c₂.restrict]
+        simp
+
+      have (i: I) (a b): c₁.ars.rel i a b ↔ A.rel i a b := c₁.restrict i a b
+
+      -- this is a fairly magical intermediate proof.
+      -- we absolutely need hpq to be subst-able, which requires us to massage c₁ and c₂ into
+      -- a shape that makes replacement well-typed. That requires us to pass c₁.ars and c₂.ars
+      -- as arbitrary ARSes A and B, which are not dependent on c₁.p and c₂.p, which would inhibit
+      -- replacement. We still need the restriction properties that c₁ and c₂ give us, though, so we
+      -- need to pass those in separately.
+      have {p q: α → Prop} (hpq: p = q) (A: ARS (Subtype p) I) (B: ARS (Subtype q) I) (C: ARS α I)
+        (hres₁: ∀i a b, A.rel i a b ↔ C.rel i a b) (hres₂: ∀i a b, B.rel i a b ↔ C.rel i a b): HEq A B := by
+        revert B hres₂
+        subst hpq
+        intro B hres₂
+        apply heq_of_eq
+        ext i a b
+        rw [hres₁, hres₂]
+
+      apply this prop_eq c₁.ars c₂.ars A c₁.restrict c₂.restrict
+
+
+lemma ARS.component_root_mem {A: ARS α I}: (A.component a).p a := by
+  simp [ARS.component]
+  rfl
+
+lemma component_mem_eq {A: ARS α I} {x: Component A} (helem: x.p b):
+    (A.component b) = x :=
+  component_unique b ARS.component_root_mem helem
 
 @[simp]
 lemma ARS.component_p: (A.component a).p = (A.conv a ·) := by
