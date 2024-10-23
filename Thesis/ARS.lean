@@ -190,9 +190,7 @@ lemma component_unique {A: ARS α I} {c₁ c₂: Component A} (a: α):
       -- need to pass those in separately.
       have {p q: α → Prop} (hpq: p = q) (A: ARS (Subtype p) I) (B: ARS (Subtype q) I) (C: ARS α I)
         (hres₁: ∀i a b, A.rel i a b ↔ C.rel i a b) (hres₂: ∀i a b, B.rel i a b ↔ C.rel i a b): HEq A B := by
-        revert B hres₂
         subst hpq
-        intro B hres₂
         apply heq_of_eq
         ext i a b
         rw [hres₁, hres₂]

@@ -225,8 +225,7 @@ lemma exists_dcr_main_road:
       cofinal_reduction hseq ∧ hseq.acyclic := by
   obtain ⟨x, hx⟩ := C.component_nonempty
 
-  have hxeq: C = (A.component x) := by
-    exact Eq.symm (component_mem_eq hx)
+  have hxeq: C = (A.component x) := (component_mem_eq hx).symm
 
   obtain ⟨N, f, hseq, hcf, -⟩ := hxeq ▸ hcp x
   obtain ⟨N, f, hseq, hcf, hacyclic⟩ := cofinal_reduction_acyclic hseq hcf
@@ -246,10 +245,6 @@ noncomputable def main_road_f :=
 
 def main_road_acyclic :=
   (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose_spec.right
-
-lemma dcr_main_road_heq (c₁ c₂: Component A)
-    (hc: c₁ = c₂): HEq (main_road c₁ hcp) (main_road c₂ hcp) := by
-  rw [hc]
 
 def red_step_in_seq {f: ℕ → α} (b c: α) (hseq: reduction_seq r N f) :=
   ∃(n: ℕ) (hn: n < N), b = f n ∧ c = f (n + 1)
