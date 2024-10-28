@@ -274,15 +274,15 @@ variable (f: ℕ → α) (hseq: reduction_seq r ⊤ f) (hcycle: ¬hseq.acyclic)
 /--
 If `h: appears_infinitely f n`, the element `f n` appears infinitely often.
 -/
-def appears_infinitely (n: ℕ) := ∀N, ∃m > N, f m = f n
+def appears_infinitely (n: ℕ) := ∀N, ∃m > N, f n = f m
 
 /--
 If `h: appears_finitely f n`, the element `f n` appears finitely often.
 -/
-def appears_finitely (n: ℕ):= ∃N, ∀m > N, f m ≠ f n
+def appears_finitely (n: ℕ):= ∃N, ∀m > N, f n ≠ f m
 
 /-- A stronger version of `appears_finitely` which gives us the final appearance. -/
-def appears_finitely' (n: ℕ) := ∃N, f n = f N ∧ ∀m > N, f m ≠ f n
+def appears_finitely' (n: ℕ) := ∃N, f n = f N ∧ ∀m > N, f n ≠ f m
 
 open Classical in
 private lemma aux: appears_finitely f n → appears_finitely' f n := by
@@ -334,7 +334,7 @@ lemma acyclic_of_appears_infinitely.reduction_seq (hinf: ∃n, appears_infinitel
   obtain ⟨n₂, hn₂⟩ := hm n
   have := hseq.star n n₂
   simp at this
-  rw [<-m_def, <-hn₂.2]
+  rw [<-m_def, hn₂.2]
   apply this
   omega
 
@@ -342,9 +342,8 @@ section all_appear_finitely
 
 variable (hf: ∀n, appears_finitely' f n)
 
-noncomputable def f_idxs: ℕ → ℕ
-| 0 => (hf 0).choose
-| n + 1 => (hf ((f_idxs n) + 1)).choose
+noncomputable def f_idxs (n: ℕ): ℕ :=
+  (hf (if n = 0 then n else (f_idxs (n - 1)) + 1)).choose
 
 noncomputable def f' (n: ℕ) :=
   f <| f_idxs f hf n
@@ -352,48 +351,52 @@ noncomputable def f' (n: ℕ) :=
 include hseq in
 lemma hseq': reduction_seq r ⊤ (f' f hf) := by
   intro n hn
-  rw [f', f', f_idxs]
+  dsimp [f']
+  nth_rw 2 [f_idxs]
 
-  have := (hf ((f_idxs f hf n) + 1)).choose_spec
-  rw [<-this.1]
+  have ⟨heq, hneq⟩ := (hf ((f_idxs f hf n) + 1)).choose_spec
 
-  simp only [ENat.coe_lt_top, hseq]
+  simp only [<-heq, ENat.coe_lt_top, hseq]
 
-lemma hf_follows_arg (n: ℕ): (hf n).choose ≥ n := by
-  have := (hf n).choose_spec
-  by_contra h
-  apply this.2 n
+lemma arg_le_hf (n: ℕ): n ≤ (hf n).choose := by
+  have ⟨heq, hneq⟩ := (hf n).choose_spec
+  by_contra! h
+  apply hneq n h rfl
+
+lemma f_idxs.strictMono: StrictMono (f_idxs f hf) := by
+  apply strictMono_nat_of_lt_succ
+  intro n
+  nth_rw 2 [f_idxs]
+  have := arg_le_hf f hf ((f_idxs f hf n) + 1)
   omega
-  rfl
 
-lemma f_idxs_follows_arg: f_idxs f hf n ≥ n := by
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    unfold f_idxs
-    have := hf_follows_arg f hf ((f_idxs f hf n) + 1)
-    omega
 
 include hcf in
 lemma hseq'.cofinal: cofinal_reduction (hseq' r f hseq hf) := by
   intro a
   obtain ⟨b, ⟨n, -, heq⟩, hab⟩ := hcf a
-  simp
+
+  simp only [reduction_seq.elems, top_add, ENat.coe_lt_top, Set.setOf_true, Set.image_univ,
+    Set.mem_range, exists_exists_eq_and]
+
   use n
   rw [f']
-  have: f_idxs f hf n ≥ n := f_idxs_follows_arg f hf
+  have hge: f_idxs f hf n ≥ n := (f_idxs.strictMono f hf).le_apply
   trans b
-  exact hab
-  rw [<-heq]
-  apply hseq.star
-  all_goals simp only [top_add, ENat.coe_lt_top, this]
+  · assumption
+  · rw [<-heq]
+    apply hseq.star _ _ _ hge
+    simp only [top_add, ENat.coe_lt_top]
 
-lemma f_idxs.strictMono: StrictMono (f_idxs f hf) := by
-  apply strictMono_nat_of_lt_succ
-  intro n
-  rw [f_idxs]
-  have := hf_follows_arg f hf ((f_idxs f hf n) + 1)
-  omega
+/--
+`f_idxs f hf n` represents the greatest index of an element of f. Hence, if
+`m > f_idxs f hf n`, `f (f_idxs f hf n) ≠ f m`.
+-/
+lemma f_idxs_last {n m: ℕ} (hm: m > f_idxs f hf n): f (f_idxs f hf n) ≠ f m := by
+  rw [f_idxs] at *
+  have ⟨heq, hneq⟩:= (hf (if n = 0 then n else f_idxs f hf (n - 1) + 1)).choose_spec
+  rw [<-heq]
+  apply hneq _ hm
 
 lemma hseq'.acyclic: (hseq' r f hseq hf).acyclic := by
   simp [reduction_seq.acyclic]
@@ -403,36 +406,8 @@ lemma hseq'.acyclic: (hseq' r f hseq hf).acyclic := by
   wlog h: n < m generalizing n m
   · apply this m n heq.symm (by tauto) (by omega)
 
-  have := f_idxs.strictMono f hf h
+  apply f_idxs_last f hf (f_idxs.strictMono f hf h) heq
 
-  unfold f_idxs at heq this
-
-  split at heq <;> split at heq
-  · contradiction
-  · rename_i n h
-    have spec_0 := (hf 0).choose_spec
-    have spec_n := (hf ((f_idxs f hf n) + 1)).choose_spec
-
-    dsimp at this
-
-    set a := (hf 0).choose
-    set b := (hf ((f_idxs f hf n) + 1)).choose
-
-    have := spec_0.2 b this
-    cc
-  · contradiction
-  · rename_i n _ m h₂
-
-    have spec_m := (hf ((f_idxs f hf m) + 1)).choose_spec
-    have spec_n := (hf ((f_idxs f hf n) + 1)).choose_spec
-
-    dsimp at this
-
-    set a := (hf ((f_idxs f hf m) + 1)).choose
-    set b := (hf ((f_idxs f hf n) + 1)).choose
-
-    have := spec_n.2 a this
-    cc
 
 end all_appear_finitely
 
