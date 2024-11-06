@@ -40,43 +40,43 @@ Two relations `r` and `s` _commute weakly_ if `r a b` and `s a c`
 imply the existence of a `d` s.t. `r∗ c d` and `s∗ b d`.
 -/
 @[simp] def weakly_commutes :=
-  ∀(a b c: α), r a b ∧ s a c → ∃d, s∗ b d ∧ r∗ c d
+  ∀{a b c: α}, r a b ∧ s a c → ∃d, s∗ b d ∧ r∗ c d
 
 /--
 Two relations `r` and `s` _commute_ if `r∗ a b` and `s∗ a c` imply
 the existence of a `d` s.t. `r∗ c d` and `s∗ b d`.
 -/
 @[simp] def commutes :=
-  ∀(a b c: α), r∗ a b ∧ s∗ a c → ∃d, s∗ b d ∧ r∗ c d
+  ∀{a b c: α}, r∗ a b ∧ s∗ a c → ∃d, s∗ b d ∧ r∗ c d
 
 @[simp] def subcommutative' (a: α) :=
-  ∀(b c : α), r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
+  ∀{b c : α}, r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
 
 @[simp] def subcommutative :=
-  ∀(a b c : α), r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
+  ∀{a b c : α}, r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
 
 /-- Elementwise confluence (see `confluent`). -/
 @[simp] def confluent' (a: α) : Prop :=
-  ∀(b c : α), r∗ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r∗ c d
+  ∀{b c : α}, r∗ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r∗ c d
 
 /-- Confluence, also known as the Church-Rosser property. -/
 @[simp] def confluent :=
-  ∀(a b c : α), r∗ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r∗ c d
+  ∀{a b c : α}, r∗ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r∗ c d
 
 /-- Elementwise weak confluence (see `weakly_confluent`). -/
 @[simp] def weakly_confluent' (a: α) : Prop :=
-  ∀(b c : α), r a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
+  ∀{b c : α}, r a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
 
 /-- Weak confluence, also known as local confluence or weak Church-Rosser. -/
 @[simp] def weakly_confluent :=
-  ∀(a b c : α), r a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
+  ∀{a b c : α}, r a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
 
 /-- Elementwise diamond property (see `diamond_property`). -/
 @[simp] def diamond_property' (a: α) : Prop :=
-  ∀(b c: α), r a b ∧ r a c → ∃d, r b d ∧ r c d
+  ∀{b c: α}, r a b ∧ r a c → ∃d, r b d ∧ r c d
 
 @[simp] def diamond_property : Prop :=
-  ∀(a b c: α), r a b ∧ r a c → ∃d, r b d ∧ r c d
+  ∀{a b c: α}, r a b ∧ r a c → ∃d, r b d ∧ r c d
 
 /-- Elementwise triangle property (see `triangle_property`). -/
 @[simp] def triangle_property' (a: α) : Prop :=
@@ -127,7 +127,7 @@ of a `d` such that `r∗ b d` and `r∗ c d`. This differs from confluence in th
 `semi_confluent` is equivalent to `confluent` (see `semi_confluent_iff_confluent`)
 but is sometimes easier to prove as you can simply use induction on the length of `r∗ a b`.
 -/
-def semi_confluent := ∀a b c, r∗ a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
+def semi_confluent := ∀{a b c}, r∗ a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
 
 theorem semi_confluent_iff_confluent: semi_confluent r ↔ confluent r := by
   constructor
@@ -137,11 +137,11 @@ theorem semi_confluent_iff_confluent: semi_confluent r ↔ confluent r := by
     | refl => use b
     | @tail e f hae hef ih =>
         obtain ⟨d, hd⟩ := ih
-        have ⟨g, hg⟩: ∃g, r∗ d g ∧ r∗ f g := hsc e d f ⟨hd.right, hef⟩
+        have ⟨g, hg⟩: ∃g, r∗ d g ∧ r∗ f g := hsc ⟨hd.right, hef⟩
         have hbg: r∗ b g := ReflTransGen.trans hd.left hg.left
         exact ⟨g, ⟨hbg, hg.right⟩⟩
   · rintro hc a b c ⟨hab, hac⟩
-    exact hc _ _ _ ⟨hab, ReflTransGen.single hac⟩
+    exact hc ⟨hab, ReflTransGen.single hac⟩
 
 
 /--
@@ -149,9 +149,9 @@ A relation is _conversion confluent_ if `r≡ a b` implies the existence of a
 `c` such that `r∗ a c` and `r∗ b c`. It is equivalent to confluence
 (see `conv_confluent_iff_confluent`).
 -/
-def conv_confluent := ∀a b, (r≡) a b → ∃c, r∗ a c ∧ r∗ b c
+def conv_confluent := ∀{a b}, (r≡) a b → ∃c, r∗ a c ∧ r∗ b c
 
-theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
+theorem conv_confluent_iff_confluent {r: Rel α α}: conv_confluent r ↔ confluent r := by
   constructor
   · intro hcc
     rintro a b c ⟨hab, hac⟩
@@ -164,12 +164,12 @@ theorem conv_confluent_iff_confluent: conv_confluent r ↔ confluent r := by
     induction hab with
     | rel x y rxy =>
         have hrefl : r∗ x x := ReflTransGen.refl
-        exact hcon x _ _ ⟨hrefl, ReflTransGen.single rxy⟩
-    | refl x => exact (fun hrefl ↦ hcon x _ _ ⟨hrefl, hrefl⟩) ReflTransGen.refl
+        exact hcon ⟨hrefl, ReflTransGen.single rxy⟩
+    | refl x => exact (fun hrefl ↦ hcon ⟨hrefl, hrefl⟩) ReflTransGen.refl
     | symm x y _ ih => tauto
     | trans x y z _ _ xy_ih yz_ih =>
         obtain ⟨⟨c, hc⟩, ⟨d, hd⟩⟩ := xy_ih, yz_ih
-        have ⟨e, he⟩ : ∃e, r∗ c e ∧ r∗ d e := hcon _ _ _ ⟨hc.right, hd.left⟩
+        have ⟨e, he⟩ : ∃e, r∗ c e ∧ r∗ d e := hcon ⟨hc.right, hd.left⟩
         exact ⟨e, ⟨ReflTransGen.trans hc.left he.left,
                    ReflTransGen.trans hd.right he.right⟩⟩
 
@@ -188,7 +188,7 @@ lemma diamond_property_imp_confluent : diamond_property r → confluent r := by
   | tail _ hef ih =>
       rename_i e _
       obtain ⟨d, ⟨hed, hcd⟩⟩ := ih
-      have ⟨g, hg⟩ := hdp _ _ _ ⟨hed, hef⟩
+      have ⟨g, hg⟩ := hdp ⟨hed, hef⟩
       use g, hg.right, ReflTransGen.tail hcd hg.left
 
 
@@ -197,12 +197,12 @@ Strong confluence, as defined by Huet (1980).
 
 Strong confluence implies confluence, see `strongly_confluent_imp_confluent`.
 -/
-def strongly_confluent := ∀a b c, r a b ∧ r a c → ∃d, r⁼ b d ∧ r∗ c d
+def strongly_confluent := ∀{a b c}, r a b ∧ r a c → ∃d, r⁼ b d ∧ r∗ c d
 
 -- The proof of strong confluence → confluence follows the proof sketch
 -- given by Huet (1980). This auxiliary def is used as an intermediate step,
 -- because it provides a strong enough induction hypothesis.
-private def sc_aux := ∀a b c, r⁼ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r⁼ c d
+private def sc_aux := ∀{a b c}, r⁼ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r⁼ c d
 
 private lemma strongly_confluent_imp_sc_aux : strongly_confluent r → sc_aux r := by
   intro hsc
@@ -216,12 +216,12 @@ private lemma strongly_confluent_imp_sc_aux : strongly_confluent r → sc_aux r 
       obtain ⟨d, ⟨hbd, hed⟩⟩ := ih
       rcases hed with _ | hed
       · use f, ReflTransGen.tail hbd hef, ReflGen.refl
-      · have ⟨g, ⟨hfg, hdg⟩⟩ := hsc _ _ _ ⟨hef, hed⟩
+      · have ⟨g, ⟨hfg, hdg⟩⟩ := hsc ⟨hef, hed⟩
         use g, ReflTransGen.trans hbd hdg, hfg
 
 private lemma sc_aux_imp_semi_confluent : sc_aux r → semi_confluent r := by
   rintro haux a b c ⟨hab, hbc⟩
-  obtain ⟨d, hd⟩ := haux _ _ _ ⟨ReflGen.single hbc, hab⟩
+  obtain ⟨d, hd⟩ := haux ⟨ReflGen.single hbc, hab⟩
   use d, ?_, hd.left
   cases hd.right
   · exact ReflTransGen.refl
@@ -368,7 +368,7 @@ def rel_inductive := ∀{N f}, reduction_seq r N f → ∃a, ∀n < (N + 1), r�
 A relation is _increasing_ if there exists a mapping `f: α → ℕ` which increases
 with a reduction step.
 -/
-def increasing := ∃(f: α → ℕ), ∀a b, r a b → f a < f b
+def increasing := ∃(f: α → ℕ), ∀{a b}, r a b → f a < f b
 
 lemma increasing.trans: increasing r → increasing r⁺ := by
     rintro ⟨f, hf⟩
@@ -377,7 +377,7 @@ lemma increasing.trans: increasing r → increasing r⁺ := by
     induction hab with
     | single _ => apply hf; assumption
     | tail hab hbc ih =>
-      apply lt_trans ih (hf _ _ hbc)
+      apply lt_trans ih (hf hbc)
 
 /-- A relation is _finitely branching_ if every element has only finitely many one-step reducts. -/
 def finitely_branching :=
@@ -509,8 +509,8 @@ lemma semi_complete_imp_inductive: semi_complete r → rel_inductive r := by
 
 lemma confluent_imp_nf_prop: confluent r → nf_prop r := by
   intro hc a b hnfb hequiv
-  have hconv: conv_confluent r := (conv_confluent_iff_confluent r).mpr hc
-  obtain ⟨c, hc⟩ := hconv a b hequiv
+  have hconv: conv_confluent r := conv_confluent_iff_confluent.mpr hc
+  obtain ⟨c, hc⟩ := hconv hequiv
   suffices hcb: c = b by
     rw [hcb] at hc; exact hc.left
   cases hc.right.cases_head
@@ -528,7 +528,7 @@ lemma nf_imp_un: nf_prop r → unique_nf_prop r := by
 
 lemma semi_complete_imp_confluent: semi_complete r → confluent r := by
   rintro ⟨hun, hwn⟩
-  rw [<-conv_confluent_iff_confluent r]
+  rw [<-conv_confluent_iff_confluent]
   intro a b hab
 
   obtain ⟨nfa, hnfa, hranfa⟩ := hwn a
@@ -561,7 +561,7 @@ lemma inductive_increasing_imp_sn: rel_inductive r ∧ increasing r → strongly
 
   have: ∀k, 1 ≤ f (seq (k + 1)) - f (seq k) := by
     intro k
-    have := hf _ _ (TransGen.single <| hseq k)
+    have := hf (TransGen.single <| hseq k)
     omega
 
   have hgt: ∀n, n ≤ f (seq n) := by
@@ -584,7 +584,7 @@ lemma inductive_increasing_imp_sn: rel_inductive r ∧ increasing r → strongly
 
   have hr := (reflTransGen_iff_eq_or_transGen.mp <| ha' (k + 1)).resolve_left ha
   have h: k + 1 ≤ f (seq (k + 1)) := hgt (k + 1)
-  have h': f (seq (k + 1)) < k := hf _ _ hr
+  have h': f (seq (k + 1)) < k := hf hr
   linarith only [h, h']
 
 

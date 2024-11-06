@@ -42,7 +42,7 @@ def cofinality_property_conv :=
     cofinal_reduction hseq ∧ hseq.start = a
 
 /-- Any ARS with the cofinality property is confluent. -/
-lemma cp_imp_cr: cofinality_property A → confluent A.union_rel := by
+lemma cp_imp_cr {A: ARS α I}: cofinality_property A → confluent A.union_rel := by
   intro hcp
   rintro a b c ⟨hab, hac⟩
 
@@ -63,7 +63,7 @@ lemma cp_imp_cr: cofinality_property A → confluent A.union_rel := by
 
   wlog hle: nb ≤ nc generalizing nb nc hbsb hcsc b hab c hac
   · simp at hle
-    have := this c b hac hab nc hnc hcsc nb hnb hbsb (le_of_lt hle)
+    have := this hac hab nc hnc hcsc nb hnb hbsb (le_of_lt hle)
     tauto
 
   have hbsc := hbsb.trans <| hseq.star nb nc hnc hle
@@ -79,7 +79,8 @@ lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := b
   constructor
   · show cofinality_property A → cofinality_property_conv A
     intro hcp a
-    have hc := (conv_confluent_iff_confluent _).mpr <| cp_imp_cr _ hcp
+    have hc: conv_confluent A.union_rel :=
+      conv_confluent_iff_confluent.mpr (cp_imp_cr hcp)
 
     obtain ⟨N, f, hseq, hcr, hstart⟩ := hcp a
 
@@ -91,7 +92,7 @@ lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := b
     use N, f', hseq
     constructor
     · rintro ⟨a', ha'⟩
-      have ⟨d, hd₁, hd₂⟩ := hc _ _ ha'
+      have ⟨d, hd₁, hd₂⟩ := hc ha'
       obtain ⟨⟨b, hb⟩, ⟨n, hb₁⟩, hb₂⟩ := hcr ⟨d, heq ▸ hd₁⟩
       use ⟨b, (heq ▸ hb).to_equiv⟩
       constructor
@@ -165,7 +166,7 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
 
   -- every pair of elements in β must have a common reduct, by confluence
   have common_reduct (x y: β): ∃c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c := by
-    apply S.down_confluent_union A cr a'
+    apply S.down_confluent_union A cr (a := a')
     constructor
     · have := x.prop
       simp_all [S.star_restrict_union]

@@ -70,7 +70,7 @@ def newman_ambiguous_step {r: Rel α α} (hwn: weakly_normalizing r) (hwc: weakl
     rename_i hb hc
     obtain ⟨b, hb⟩ := hb
     obtain ⟨c, hc⟩ := hc
-    obtain ⟨d, hd⟩ := hwc a b c (by tauto)
+    obtain ⟨d, hd⟩ := hwc (b := b) (c := c) (by tauto)
 
     obtain ⟨nfd, hnfd⟩ := hwn d
 
@@ -85,7 +85,7 @@ def newman_ambiguous_step {r: Rel α α} (hwn: weakly_normalizing r) (hwc: weakl
 /-- Newman's lemma: strong normalization + local confluence implies confluence. -/
 def newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
   have hwn: weakly_normalizing r := strongly_normalizing_imp_weakly_normalizing hsn
-  suffices hun: unique_nf_prop_r r from unr_wn_imp_confluence hwn hun
+  suffices hun: unique_nf_prop_r r from @unr_wn_imp_confluence _ _ hwn hun
   contrapose hsn with hun
   simp only [unique_nf_prop_r, not_forall] at hun
 
@@ -164,13 +164,13 @@ lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
   have hconc': confluent' r c' := wf_ih c' (TransGen.single hac')
 
   /- b' and c' converge at some point d' by weak confluence. -/
-  obtain ⟨d', hb'd', hc'd'⟩ := hwc a b' c' ⟨hab', hac'⟩
+  obtain ⟨d', hb'd', hc'd'⟩ := hwc ⟨hab', hac'⟩
 
   /- b' ->* b and b' ->* d', so by confluence b and d' converge at some point e. -/
-  obtain ⟨e, hbe, hd'e⟩ := hconb' b d' ⟨hb'b, hb'd'⟩
+  obtain ⟨e, hbe, hd'e⟩ := hconb' ⟨hb'b, hb'd'⟩
 
   /- c' ->* c and c' ->* d' ->* e, so c and e converge at some point d. -/
-  obtain ⟨d, hcd, hed⟩ := hconc' c e ⟨hc'c, ReflTransGen.trans hc'd' hd'e⟩
+  obtain ⟨d, hcd, hed⟩ := hconc' ⟨hc'c, ReflTransGen.trans hc'd' hd'e⟩
 
   /- This point d is the point where b and c converge. -/
   use d, ReflTransGen.trans hbe hed, hcd
@@ -257,7 +257,7 @@ private lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp
       simp [SymmSeq.elems, Step.end]
       nth_rw 1 [List.drop_eq_getElem_cons, List.drop_eq_getElem_cons]
       simp
-      constructor <;> (apply @List.getElem_map _ _ _ _ _ (by simp; omega))
+      constructor <;> (apply List.getElem_map (h := by simp; omega))
 
     have: Multiset.ofList hseq.elems = Multiset.ofList (hseq.elems.take (n + 1) ++ hseq.elems.drop (n + 3)) + Multiset.ofList ([ss[n], ss[n+1]].map (·.end)) := by
       nth_rw 1 [this]
@@ -279,7 +279,7 @@ private lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp
   want to show that replacing `b <- a -> c` with `b -> .. -> d <- .. <- c`
   reduces the multiset of sequence elements according to the multiset order extension.
   -/
-  obtain ⟨d, hd⟩ := hwc ss[n+1].start _ _ ⟨hab, hac⟩
+  obtain ⟨d, hd⟩ := hwc ⟨hab, hac⟩
 
   have hseq₁ := hseq.take n (by omega)
   have hseq₂ := hseq.drop (n + 2) (by omega)
@@ -422,7 +422,7 @@ lemma newman₃ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
   have hwf: IsWellFounded α (r.inv)⁺ := inferInstance
   have hwf': IsWellFounded (Multiset α) (MultisetExt (r.inv)⁺) := inferInstance
 
-  apply (conv_confluent_iff_confluent r).mp
+  apply conv_confluent_iff_confluent.mp
   intro a b hab
   have ⟨ss, hab'⟩ := SymmSeq.iff_conv.mp hab
 

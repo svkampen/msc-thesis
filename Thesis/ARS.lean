@@ -31,21 +31,18 @@ abbrev ARS.union_lt [PartialOrder I] (A: ARS α I): I → Rel α α :=
 lemma ARS.union_lt_max [LinearOrder I] (A: ARS α I) (a b: α):
     A.union_lt i a b → A.union_lt (max i j) a b := by
   intro h
-  cases (max_cases i j) with
-  | inl heq => rwa [heq.1]
-  | inr heq =>
-    rw [heq.1]
-    obtain ⟨k, hk⟩ := h
-    use k, ?_, hk.2
-    trans i <;> aesop
+  rcases (max_cases i j) with (⟨heq₁, heq₂⟩ | ⟨heq₁, heq₂⟩)
+  · rwa [heq₁]
+  · rw [heq₁]
+    obtain ⟨k, hlt, hrel⟩ := h
+    have hlt': k < j := gt_trans heq₂ hlt
+    use k, hlt', hrel
 
 lemma ARS.union_lt_trans [LinearOrder I] (A: ARS α I) (a b: α) {i j} (hij: i ≤ j):
     A.union_lt i a b → A.union_lt j a b := by
   rintro ⟨k, hklt, hkrel⟩
-  use k, ?_, hkrel
-  apply lt_of_lt_of_le hklt hij
-
-
+  have hkj := lt_of_lt_of_le hklt hij
+  use k, hkj, hkrel
 
 /--
 The convertability relation ≡ generated from the union of ARS relations.
@@ -287,7 +284,7 @@ private lemma down_confluent_aux {p: α → Prop}
   have ⟨sab, sac⟩: s∗ a b ∧ s∗ a c := by
     constructor <;> rwa [<-hrestrict a _]
 
-  have ⟨d, hd⟩ := hc _ _ _ ⟨sab, sac⟩
+  have ⟨d, hd⟩ := hc ⟨sab, sac⟩
   have hpd: p d := hclosure b _ ⟨b.property, hd.left⟩
   use ⟨d, hpd⟩
   simp [hrestrict _ ⟨d, hpd⟩, hd]
