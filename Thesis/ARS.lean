@@ -175,14 +175,7 @@ lemma component_unique {A: ARS α I} {c₁ c₂: Component A} (a: α):
   · congr! 1
     ext
     · exact Eq.to_iff (congrFun prop_eq _)
-    · have: ∀i a b, c₁.ars.rel i a b → c₂.ars.rel i ⟨a.val, by rw [<-prop_eq];exact a.prop⟩ ⟨b.val, by rw [<-prop_eq];exact b.prop⟩ := by
-        intro i a b
-        rw [c₁.restrict, c₂.restrict]
-        simp
-
-      have (i: I) (a b): c₁.ars.rel i a b ↔ A.rel i a b := c₁.restrict i a b
-
-      -- this is a fairly magical intermediate proof.
+    · -- this is a very load-bearing intermediate proof.
       -- we absolutely need hpq to be subst-able, which requires us to massage c₁ and c₂ into
       -- a shape that makes replacement well-typed. That requires us to pass c₁.ars and c₂.ars
       -- as arbitrary ARSes A and B, which are not dependent on c₁.p and c₂.p, which would inhibit

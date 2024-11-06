@@ -87,11 +87,11 @@ the existence of a `d` s.t. `r∗ c d` and `s∗ b d`.
 
 
 -- Ensure that these definitions don't go out of sync:
-#check (by simp : subcommutative r ↔ ∀a, subcommutative' r a)
-#check (by simp : confluent r ↔ ∀a, confluent' r a)
-#check (by simp : weakly_confluent r ↔ ∀a, weakly_confluent' r a)
-#check (by simp : diamond_property r ↔ ∀a, diamond_property' r a)
-#check (by simp : triangle_property r ↔ ∀a, triangle_property' r a)
+example: subcommutative r ↔ ∀a, subcommutative' r a := by simp
+example: confluent r ↔ ∀a, confluent' r a := by simp
+example: weakly_confluent r ↔ ∀a, weakly_confluent' r a := by simp
+example: diamond_property r ↔ ∀a, diamond_property' r a := by simp
+example: triangle_property r ↔ ∀a, triangle_property' r a := by simp
 
 
 /-- `ReflTransGen` is idempotent, i.e. applying it once is the same as applying it n>1 times. -/
