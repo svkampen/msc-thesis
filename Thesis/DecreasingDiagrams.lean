@@ -68,7 +68,7 @@ An ARS `A` is DCR with n labels if there exists a reduction-equivalent ARS `B`
 which is indexed by `{ i | i < n }` which is locally decreasing.
 -/
 def DCRn (n: ℕ) (A: ARS α I) :=
-  ∃(B: ARS α { i | i < n }), A.union_rel = B.union_rel ∧ locally_decreasing B
+  ∃(B: ARS α (Fin n)), A.union_rel = B.union_rel ∧ locally_decreasing B
 
 /--
 If an ARS is DCRn, it is DCR.
