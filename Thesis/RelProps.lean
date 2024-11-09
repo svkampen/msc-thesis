@@ -308,6 +308,9 @@ last element of `hseq`, i.e. `f N`.
 @[simp]
 def reduction_seq.end (N: ℕ) (hseq: reduction_seq r N f): α := f N
 
+def reduction_seq.contains {r: Rel α α} (hseq: reduction_seq r N f) (a b: α) :=
+  ∃n, f n = a ∧ f (n + 1) = b ∧ n < N
+
 def fun_aux (N: ℕ) (f g: ℕ → α): ℕ → α :=
   fun n ↦ if (n ≤ N) then f n else g (n - N)
 

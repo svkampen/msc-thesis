@@ -257,17 +257,17 @@ If `a -> b` and the minimal distance from `a` to the main road is `n + 1`, the
 distance from `b` to the main road must be at least `n`. (If not, `a` could go
 via `b` and arrive at the main road earlier.)
 -/
-lemma dX_step_ge (a b: C.Subtype) (hrel: C.ars.union_rel a b) {n: ℕ} (hdX: dX a (main_road C hcp).elems (main_road_cr C hcp a) = n + 1):
-    dX b (main_road C hcp).elems (main_road_cr C hcp b) ≥ n := by
+lemma dX_step_ge {mr: reduction_seq C.ars.union_rel N f} (hcr: cofinal_reduction mr) (a b: C.Subtype) (hrel: C.ars.union_rel a b) {n: ℕ} (hdX: dX a mr.elems (hcr a) = n + 1):
+    dX b mr.elems (hcr b) ≥ n := by
 
-  let dXb := dX b (main_road C hcp).elems (main_road_cr C hcp b)
+  let dXb := dX b mr.elems (hcr b)
   by_contra! hlt
 
   -- there is a length-d(b) path from b to m ∈ M
-  have ⟨f, x, hmem, heq₁, heq₂, hseq⟩ := dX.spec _ (main_road_cr C hcp b)
+  have ⟨f, x, hmem, heq₁, heq₂, hseq⟩ := dX.spec _ (hcr b)
 
   -- d(a) is minimal, so there cannot be a path with length d(b) + 1, because d(b) < n.
-  have hmin := dX.min _ (main_road_cr C hcp a) (dXb.val + 1) (by unfold_let; rw [hdX]; omega)
+  have hmin := dX.min _ (hcr a) (dXb.val + 1) (by unfold_let; rw [hdX]; omega)
 
   push_neg at hmin
 
@@ -299,23 +299,23 @@ path from `a` to the main road, the minimal distance from `b` to the main road
 is at most `n`, since the path without its head is a length-`n` path from `b` to
 the main road.
 -/
-lemma dX_step_le (a x: C.Subtype) (hx: x ∈ (main_road C hcp).elems) {f: ℕ → C.Subtype} {n: ℕ} (hseq: is_reduction_seq_from C.ars.union_rel a x f (n + 1)):
-    dX (f 1) (main_road C hcp).elems (main_road_cr C hcp _) ≤ n := by
+lemma dX_step_le {mr: reduction_seq C.ars.union_rel N f} (hcr: cofinal_reduction mr) (a x: C.Subtype) (hx: x ∈ mr.elems) {f': ℕ → C.Subtype} {n': ℕ} (hseq: is_reduction_seq_from C.ars.union_rel a x f' (n' + 1)):
+    dX (f' 1) mr.elems (hcr _) ≤ n' := by
 
-  let f' := fun n ↦ f (n + 1)
-  have: is_reduction_seq_from C.ars.union_rel (f 1) x f' n := by
+  let g' := fun n ↦ f' (n + 1)
+  have: is_reduction_seq_from C.ars.union_rel (f' 1) x g' n' := by
     and_intros
-    · dsimp [f']
-    · simpa [f'] using hseq.right.left
+    · dsimp [g']
+    · simpa [g'] using hseq.right.left
     · intro m hm
-      simp [f']
+      simp [g']
       apply hseq.right.right
       norm_cast at hm ⊢
       omega
 
   by_contra! hgt
-  apply dX.min (main_road C hcp).elems (main_road_cr C hcp (f 1)) n hgt
-  use f', x
+  apply dX.min mr.elems (hcr (f' 1)) n' hgt
+  use g', x
 
 end step
 
@@ -420,8 +420,8 @@ lemma dX_imp_red_seq (n: ℕ) (b: C.Subtype):
 
     have: (dX (f 1) _ hpath) = n := by
       apply Nat.le_antisymm
-      · apply dX_step_le hcp b x hmem₁ ⟨heq₁, ⟨h ▸ heq₂, h ▸ hseq'⟩⟩
-      · apply dX_step_ge hcp b (f 1) _ h
+      · apply dX_step_le (main_road_cr C hcp) b x hmem₁ ⟨heq₁, ⟨h ▸ heq₂, h ▸ hseq'⟩⟩
+      · apply dX_step_ge (main_road_cr C hcp) b (f 1) _ h
         rw [<-heq₁]
         apply hseq'
         rw [h]
