@@ -308,6 +308,31 @@ last element of `hseq`, i.e. `f N`.
 @[simp]
 def reduction_seq.end (N: ℕ) (hseq: reduction_seq r N f): α := f N
 
+def fun_aux (N: ℕ) (f g: ℕ → α): ℕ → α :=
+  fun n ↦ if (n ≤ N) then f n else g (n - N)
+
+def reduction_seq.concat (N₁ N₂: ℕ)
+    (hseq: reduction_seq r N₁ f) (hseq': reduction_seq r N₂ g)
+    (hend: f N₁ = g 0):
+    reduction_seq r (N₁ + N₂) (fun_aux N₁ f g) := by
+  intro n hn
+  rw [fun_aux, fun_aux]
+  split <;> split
+  · -- case within hseq
+    apply hseq _ (by norm_cast)
+  · -- case straddling hseq and hseq'
+    have: n = N₁ := by omega
+    simp only [this, add_tsub_cancel_left, hend]
+    apply hseq'
+    norm_cast at *
+    omega
+  · -- invalid straddling case (n > N₁, n + 1 ≤ N₁)
+    omega
+  · -- case within hseq'
+    convert hseq' (n - N₁) (by norm_cast at *; omega) using 1
+    congr
+    omega
+
 /-- An element a is a normal form in r if there are no b s.t. r a b. -/
 @[reducible] def normal_form (a: α) :=
   ¬∃b, r a b
