@@ -165,16 +165,44 @@ example: DCRn 1 example_ars := by
       · rfl
 
 
-
--- Formalization of Proposition 14.2.30 from Terese.
-namespace Prop14230
-
-section componentwise
+namespace MainRoad
 
 variable
   {A: ARS α I}
   (C: Component A)
   (hcp: cofinality_property_conv A)
+
+include hcp in
+lemma exists_dcr_main_road:
+    ∃N f, ∃(hseq: reduction_seq C.ars.union_rel N f),
+      cofinal_reduction hseq ∧ hseq.acyclic := by
+  obtain ⟨x, hx⟩ := C.component_nonempty
+
+  have hxeq: C = (A.component x) := (component_mem_eq hx).symm
+
+  obtain ⟨N, f, hseq, hcf, -⟩ := hxeq ▸ hcp x
+  obtain ⟨N, f, hseq, hcf, hacyclic⟩ := cofinal_reduction_acyclic hseq hcf
+  use N, f, hseq
+
+def main_road :=
+  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose
+
+def main_road_cr :=
+  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose_spec.left
+
+noncomputable def main_road_len :=
+  (exists_dcr_main_road C hcp).choose
+
+noncomputable def main_road_f :=
+  (exists_dcr_main_road C hcp).choose_spec.choose
+
+def main_road_acyclic :=
+  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose_spec.right
+
+
+end MainRoad
+
+namespace RewriteDistance
 
 @[simp]
 def is_reduction_seq_from (r: Rel α α) (a b: α) (f: ℕ → α) (N: ℕ) :=
@@ -219,32 +247,93 @@ lemma dX.min (X: Set α) (hX: ∃x ∈ X, r∗ a x):
     ∀ m < ↑(dX a X hX), ¬∃ f, ∃ x ∈ X, is_reduction_seq_from r a x f m :=
   (dX a X hX).prop.right
 
-include hcp in
-lemma exists_dcr_main_road:
-    ∃N f, ∃(hseq: reduction_seq C.ars.union_rel N f),
-      cofinal_reduction hseq ∧ hseq.acyclic := by
-  obtain ⟨x, hx⟩ := C.component_nonempty
+section step
+open MainRoad
 
-  have hxeq: C = (A.component x) := (component_mem_eq hx).symm
+variable {A: ARS α I} {C: Component A} (hcp: cofinality_property_conv A)
 
-  obtain ⟨N, f, hseq, hcf, -⟩ := hxeq ▸ hcp x
-  obtain ⟨N, f, hseq, hcf, hacyclic⟩ := cofinal_reduction_acyclic hseq hcf
-  use N, f, hseq
+/--
+If `a -> b` and the minimal distance from `a` to the main road is `n + 1`, the
+distance from `b` to the main road must be at least `n`. (If not, `a` could go
+via `b` and arrive at the main road earlier.)
+-/
+lemma dX_step_ge (a b: C.Subtype) (hrel: C.ars.union_rel a b) {n: ℕ} (hdX: dX a (main_road C hcp).elems (main_road_cr C hcp a) = n + 1):
+    dX b (main_road C hcp).elems (main_road_cr C hcp b) ≥ n := by
 
-def main_road :=
-  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose
+  let dXb := dX b (main_road C hcp).elems (main_road_cr C hcp b)
+  by_contra! hlt
 
-def main_road_cr :=
-  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose_spec.left
+  -- there is a length-d(b) path from b to m ∈ M
+  have ⟨f, x, hmem, heq₁, heq₂, hseq⟩ := dX.spec _ (main_road_cr C hcp b)
 
-noncomputable def main_road_len :=
-  (exists_dcr_main_road C hcp).choose
+  -- d(a) is minimal, so there cannot be a path with length d(b) + 1, because d(b) < n.
+  have hmin := dX.min _ (main_road_cr C hcp a) (dXb.val + 1) (by unfold_let; rw [hdX]; omega)
 
-noncomputable def main_road_f :=
-  (exists_dcr_main_road C hcp).choose_spec.choose
+  push_neg at hmin
 
-def main_road_acyclic :=
-  (exists_dcr_main_road C hcp).choose_spec.choose_spec.choose_spec.right
+  let total_f' := fun n ↦ if n = 0 then a else f (n - 1)
+
+  apply hmin total_f' x hmem
+
+  and_intros
+  · simp [total_f']
+  · simp only [is_reduction_seq_from,
+    AddLeftCancelMonoid.add_eq_zero, one_ne_zero, and_false, ↓reduceIte,
+    add_tsub_cancel_right, total_f', dXb]
+    exact heq₂
+  · intro n hn
+    norm_cast at hn
+    cases n with
+    | zero =>
+      simp [total_f', heq₁, hrel]
+    | succ n =>
+      simp [total_f']
+      apply hseq
+      norm_cast
+      dsimp only [dXb] at hn
+      linarith
+
+/--
+If there is a length-`n + 1` path from `a` to the main road, and `b` lies on the
+path from `a` to the main road, the minimal distance from `b` to the main road
+is at most `n`, since the path without its head is a length-`n` path from `b` to
+the main road.
+-/
+lemma dX_step_le (a x: C.Subtype) (hx: x ∈ (main_road C hcp).elems) {f: ℕ → C.Subtype} {n: ℕ} (hseq: is_reduction_seq_from C.ars.union_rel a x f (n + 1)):
+    dX (f 1) (main_road C hcp).elems (main_road_cr C hcp _) ≤ n := by
+
+  let f' := fun n ↦ f (n + 1)
+  have: is_reduction_seq_from C.ars.union_rel (f 1) x f' n := by
+    and_intros
+    · dsimp [f']
+    · simpa [f'] using hseq.right.left
+    · intro m hm
+      simp [f']
+      apply hseq.right.right
+      norm_cast at hm ⊢
+      omega
+
+  by_contra! hgt
+  apply dX.min (main_road C hcp).elems (main_road_cr C hcp (f 1)) n hgt
+  use f', x
+
+end step
+
+end RewriteDistance
+
+
+
+-- Formalization of Proposition 14.2.30 from Terese.
+namespace Prop14230
+
+section componentwise
+open MainRoad
+open RewriteDistance
+
+variable
+  {A: ARS α I}
+  (C: Component A)
+  (hcp: cofinality_property_conv A)
 
 def red_step_in_seq {f: ℕ → α} (b c: α) (hseq: reduction_seq r N f) :=
   ∃(n: ℕ) (hn: n < N), b = f n ∧ c = f (n + 1)
@@ -330,62 +419,14 @@ lemma dX_imp_red_seq (n: ℕ) (b: C.Subtype):
       omega
 
     have: (dX (f 1) _ hpath) = n := by
-      have hnot_lt: ((dX (f 1) _ hpath) ≥ n) := by
-        -- if dX (f 1) < n, then dX (f 0) < n + 1, contradiction
-        by_contra! hlt
-
-        let n' := dX (f 1) _ hpath
-
-        have ⟨f', x', hx'mem, hx'seq₁, hx'seq₂, hx'seq₃⟩ := dX.spec _ hpath
-        have hmin := dX.min _ (hcr b) (n' + 1) (by dsimp only [h, n']; omega)
-        push_neg at hmin
-
-        let total_f' := fun n ↦ if n = 0 then b else f' (n - 1)
-
-        apply hmin total_f' x' hx'mem
-
-        and_intros
-        · simp [total_f']
-        · simp only [is_reduction_seq_from,
-          AddLeftCancelMonoid.add_eq_zero, one_ne_zero, and_false, ↓reduceIte,
-          add_tsub_cancel_right, total_f', n']
-          exact hx'seq₂
-        · intro n hn
-          norm_cast at hn
-          cases n with
-          | zero =>
-            simp [total_f', hx'seq₁, <-heq₁]
-            apply hseq'
-            rw [h]
-            norm_cast
-            norm_num
-          | succ n =>
-            simp [total_f']
-            apply hx'seq₃
-            norm_cast
-            dsimp only [n'] at hn
-            linarith
-
-      have hnot_gt: ((dX (f 1) _ hpath) ≤ n) := by
-        -- if dX (f 1) > n, then it is not minimal, contradiction
-        by_contra! hgt
-        have := dX.min _ hpath n (by omega)
-        push_neg at this
-        let sub_f := fun n ↦ f (n + 1)
-        apply this sub_f x hmem₁
-
-        and_intros
-        · simp [sub_f]
-        · simp only [<- h, is_reduction_seq_from, heq₂, sub_f]
-        · intro n hn
-          norm_cast at hn
-          simp [sub_f]
-          apply hseq'
-          rw [h]
-          norm_cast
-          linarith
-
-      exact Nat.le_antisymm hnot_gt hnot_lt
+      apply Nat.le_antisymm
+      · apply dX_step_le hcp b x hmem₁ ⟨heq₁, ⟨h ▸ heq₂, h ▸ hseq'⟩⟩
+      · apply dX_step_ge hcp b (f 1) _ h
+        rw [<-heq₁]
+        apply hseq'
+        rw [h]
+        norm_cast
+        norm_num
 
     have hrel: (dcr_component_ars C hcp).rel (n + 1) b (f 1) := by
       simp only [dcr_component_ars]
