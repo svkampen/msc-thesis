@@ -260,7 +260,7 @@ lemma acyclic_of_finite.is_cofinal (hcf: cofinal_reduction hseq):
     apply_mod_cast hseq.star
     all_goals omega
 
-def reduction_seq.acyclic (hseq: reduction_seq r N' f) := ∀(n m: ℕ), n < N' → m < N' → f n = f m → n = m
+def reduction_seq.acyclic (hseq: reduction_seq r N' f) := ∀⦃n m: ℕ⦄, n < N' → m < N' → f n = f m → n = m
 
 lemma acyclic_of_finite.is_acyclic: (acyclic_of_finite hseq).acyclic := by
   simp [acyclic_of_finite, reduction_seq.acyclic]
@@ -405,7 +405,7 @@ lemma hseq'.acyclic: (hseq' r f hseq hf).acyclic := by
   simp [f'] at heq
   by_contra h
   wlog h: n < m generalizing n m
-  · apply this m n heq.symm (by tauto) (by omega)
+  · apply this heq.symm (by tauto) (by omega)
 
   apply f_idxs_last f hf (f_idxs.strictMono f hf h) heq
 

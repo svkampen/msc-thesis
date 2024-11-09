@@ -455,7 +455,7 @@ lemma dcr_component_ars.is_stronger_decreasing:
     obtain ⟨n, hbeq, hn, hceq⟩ := hbc
     obtain ⟨m, hbeq', hm, hdeq⟩ := hbd
     have: c = d := by
-      have heq := (main_road_acyclic C hcp) n m hn hm (by aesop)
+      have heq := (main_road_acyclic C hcp) hn hm (by aesop)
       subst heq
       rw [hceq, hdeq]
     subst this

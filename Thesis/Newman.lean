@@ -25,7 +25,7 @@ variable {α} (r: Rel α α)
 def ambiguous (a: α) := ∃(b c: α), normal_form r b ∧ normal_form r c ∧ (b ≠ c) ∧ (r∗ a b ∧ r∗ a c)
 
 /-- Uniqueness of normal forms + weak normalization implies confluence. -/
-def unr_wn_imp_confluence {r: Rel α α} (hwn: weakly_normalizing r) (hu: unique_nf_prop_r r): confluent r := by
+def unr_wn_imp_confluence ⦃α⦄ ⦃r: Rel α α⦄ (hwn: weakly_normalizing r) (hu: unique_nf_prop_r r): confluent r := by
   rintro a b c ⟨hab, hac⟩
 
   obtain ⟨d₁, hd₁⟩ := hwn b
@@ -85,7 +85,7 @@ def newman_ambiguous_step {r: Rel α α} (hwn: weakly_normalizing r) (hwc: weakl
 /-- Newman's lemma: strong normalization + local confluence implies confluence. -/
 def newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
   have hwn: weakly_normalizing r := strongly_normalizing_imp_weakly_normalizing hsn
-  suffices hun: unique_nf_prop_r r from @unr_wn_imp_confluence _ _ hwn hun
+  suffices hun: unique_nf_prop_r r from unr_wn_imp_confluence hwn hun
   contrapose hsn with hun
   simp only [unique_nf_prop_r, not_forall] at hun
 

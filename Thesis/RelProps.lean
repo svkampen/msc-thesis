@@ -40,43 +40,43 @@ Two relations `r` and `s` _commute weakly_ if `r a b` and `s a c`
 imply the existence of a `d` s.t. `r∗ c d` and `s∗ b d`.
 -/
 @[simp] def weakly_commutes :=
-  ∀{a b c: α}, r a b ∧ s a c → ∃d, s∗ b d ∧ r∗ c d
+  ∀⦃a b c: α⦄, r a b ∧ s a c → ∃d, s∗ b d ∧ r∗ c d
 
 /--
 Two relations `r` and `s` _commute_ if `r∗ a b` and `s∗ a c` imply
 the existence of a `d` s.t. `r∗ c d` and `s∗ b d`.
 -/
 @[simp] def commutes :=
-  ∀{a b c: α}, r∗ a b ∧ s∗ a c → ∃d, s∗ b d ∧ r∗ c d
+  ∀⦃a b c: α⦄, r∗ a b ∧ s∗ a c → ∃d, s∗ b d ∧ r∗ c d
 
 @[simp] def subcommutative' (a: α) :=
-  ∀{b c : α}, r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
+  ∀⦃b c : α⦄, r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
 
 @[simp] def subcommutative :=
-  ∀{a b c : α}, r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
+  ∀⦃a b c : α⦄, r a b ∧ r a c → ∃d, r⁼ b d ∧ r⁼ c d
 
 /-- Elementwise confluence (see `confluent`). -/
 @[simp] def confluent' (a: α) : Prop :=
-  ∀{b c : α}, r∗ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r∗ c d
+  ∀⦃b c : α⦄, r∗ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r∗ c d
 
 /-- Confluence, also known as the Church-Rosser property. -/
 @[simp] def confluent :=
-  ∀{a b c : α}, r∗ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r∗ c d
+  ∀⦃a b c: α⦄, r∗ a b ∧ r∗ a c → ∃d, r∗ b d ∧ r∗ c d
 
 /-- Elementwise weak confluence (see `weakly_confluent`). -/
 @[simp] def weakly_confluent' (a: α) : Prop :=
-  ∀{b c : α}, r a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
+  ∀⦃b c : α⦄, r a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
 
 /-- Weak confluence, also known as local confluence or weak Church-Rosser. -/
 @[simp] def weakly_confluent :=
-  ∀{a b c : α}, r a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
+  ∀⦃a b c : α⦄, r a b ∧ r a c → ∃d, r∗ b d ∧ r∗ c d
 
 /-- Elementwise diamond property (see `diamond_property`). -/
 @[simp] def diamond_property' (a: α) : Prop :=
-  ∀{b c: α}, r a b ∧ r a c → ∃d, r b d ∧ r c d
+  ∀⦃b c: α⦄, r a b ∧ r a c → ∃d, r b d ∧ r c d
 
 @[simp] def diamond_property : Prop :=
-  ∀{a b c: α}, r a b ∧ r a c → ∃d, r b d ∧ r c d
+  ∀⦃a b c: α⦄, r a b ∧ r a c → ∃d, r b d ∧ r c d
 
 /-- Elementwise triangle property (see `triangle_property`). -/
 @[simp] def triangle_property' (a: α) : Prop :=
