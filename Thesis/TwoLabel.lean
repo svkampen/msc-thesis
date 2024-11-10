@@ -110,7 +110,7 @@ lemma steps_on_main_road {n k: ℕ} (hk: n + k < N + 1):
     norm_cast
 
 /-- Lemma 4.9(ii); if a, b ∈ M, ∃d, a ->>_0 d ∧ b ->>_0 d. -/
-lemma L4_9_ii (a b: C.Subtype) (ha: a ∈ main_road.elems) (hb: b ∈ main_road.elems):
+lemma main_road_join (a b: C.Subtype) (ha: a ∈ main_road.elems) (hb: b ∈ main_road.elems):
     ∃d, ((C' main_road hcr).rel 0)∗ a d ∧ ((C' main_road hcr).rel 0)∗ b d := by
   simp at ha hb
 
@@ -134,7 +134,7 @@ lemma L4_9_ii (a b: C.Subtype) (ha: a ∈ main_road.elems) (hb: b ∈ main_road.
 
 include hacyclic in
 /-- There is at most one b s.t. a ->₀ b. -/
-lemma L4_9_iii {a b b': C.Subtype}:
+lemma zero_step_unique {a b b': C.Subtype}:
     (C' main_road hcr).rel 0 a b ∧ (C' main_road hcr).rel 0 a b' → b = b' := by
   rintro ⟨hb, hb'⟩
 
@@ -269,7 +269,7 @@ lemma L4_9_iv (a: C.Subtype) (ha: a ∉ main_road.elems):
   · rw [<-hbmem.right, hdX]
 
 
-lemma L4_9_v (a: C.Subtype) (n: ℕ) (hn: n = dX a main_road.elems (hcr a)):
+private lemma main_road_reduction_aux (a: C.Subtype) (n: ℕ) (hn: n = dX a main_road.elems (hcr a)):
     ∃m ∈ main_road.elems, ((C' main_road hcr).rel 0)∗ a m := by
   induction n generalizing a with
   | zero =>
@@ -294,51 +294,52 @@ lemma L4_9_v (a: C.Subtype) (n: ℕ) (hn: n = dX a main_road.elems (hcr a)):
 
     use m', hmem'
 
-    apply ReflTransGen.head
-    exact hbrel
-    exact hseq
+    apply ReflTransGen.head hbrel hseq
+
+/--
+Lemma 4.9 (v):
+Every element `a` reduces to some element in the main road using only 0-steps.
+-/
+lemma main_road_reduction (a: C.Subtype):
+    ∃m ∈ main_road.elems, ((C' main_road hcr).rel 0)∗ a m := by
+  apply main_road_reduction_aux main_road hcr a (dX a main_road.elems (hcr a)).val
+  rfl
+
 
 include hacyclic in
-lemma C'.locally_decreasing: locally_decreasing (C' main_road hcr) := by
+lemma C'.stronger_decreasing: stronger_decreasing (C' main_road hcr) := by
   rintro a b c i j ⟨hab, hac⟩
 
   by_cases heq: b = c
   · subst heq
     use b
-    constructor <;>
-    · use b, (by rfl), b
 
   have: i = 1 ∨ j = 1 := by
     by_contra!
     obtain ⟨rfl, rfl⟩: i = 0 ∧ j = 0 := by omega
     apply heq
-    apply L4_9_iii main_road hcr ⟨hab, hac⟩
+    apply zero_step_unique main_road hcr ⟨hab, hac⟩
     assumption
 
-  obtain ⟨mb, hmbmem, hmbseq⟩ := L4_9_v main_road hcr b (dX b main_road.elems (hcr b)) rfl
-  obtain ⟨mc, hmcmem, hmcseq⟩ := L4_9_v main_road hcr c (dX c main_road.elems (hcr c)) rfl
+  obtain ⟨mb, hmbmem, hmbseq⟩ := main_road_reduction main_road hcr b
+  obtain ⟨mc, hmcmem, hmcseq⟩ := main_road_reduction main_road hcr c
 
-  obtain ⟨d, hd₁, hd₂⟩ := L4_9_ii main_road hcr mb mc hmbmem hmcmem
+  obtain ⟨d, hd₁, hd₂⟩ := main_road_join main_road hcr mb mc hmbmem hmcmem
 
-  have (a b: C.Subtype): (C' main_road hcr).rel 0 a b → ((C' main_road hcr).union_lt i ∪ (C' main_road hcr).union_lt j) a b := by
+  have (a b: C.Subtype): (C' main_road hcr).rel 0 a b → ((C' main_road hcr).union_lt (max i j)) a b := by
     introv h
     rcases this with (rfl | rfl)
-    · left
-      use 0, (by norm_num)
-    · right
-      use 0, (by norm_num)
-
+    · use 0, (by norm_num)
+    · use 0, (by norm_num)
 
   use d
   constructor
-  · use b, (by rfl), b, (by rfl)
-    apply ReflTransGen.mono
+  · apply ReflTransGen.mono
     exact this
     trans mb
     exact hmbseq
     exact hd₁
-  · use c, (by rfl), c, (by rfl)
-    apply ReflTransGen.mono
+  · apply ReflTransGen.mono
     exact this
     trans mc
     exact hmcseq
@@ -361,7 +362,101 @@ def dcr₂_component (hcp: cofinality_property A): ∀(C: Component A), DCRn 2 C
   constructor
   · ext
     rw [<-Componentwise.C'.reduction_equivalent]
-  · apply Componentwise.C'.locally_decreasing
+  · apply stronger_decreasing_imp_locally_decreasing (Componentwise.C'.stronger_decreasing _ _)
     exact MainRoad.main_road_acyclic C hcp.to_conv
+
+
+namespace MultiComponent
+
+open Relation
+open MainRoad
+
+variable
+  {α I: Type}
+  {A: ARS α I}
+  [hlo: LinearOrder α] [hwf: WellFoundedLT α]
+  (hcp: cofinality_property_conv A)
+
+def cp_dcr₂_ars: ARS α (Fin 2) where
+  rel := fun n a b ↦
+    ∃(C: Component A) (h: C.p a ∧ C.p b),
+      (Componentwise.C' (main_road C hcp) (main_road_cr C hcp)).rel n ⟨a, h.1⟩ ⟨b, h.2⟩
+
+
+def reduction_equivalent: A.union_rel a b ↔ (cp_dcr₂_ars hcp).union_rel a b := by
+  let C := A.component a
+
+  constructor
+  · intro h
+    let a': C.Subtype := ⟨a, A.component_root_mem⟩
+    let b': C.Subtype := ⟨b, EqvGen.rel _ _ h⟩
+
+    have := Componentwise.C'.reduction_equivalent (main_road C hcp) (main_road_cr _ hcp) a' b'
+    simp [SubARS.restrict_union] at this
+    obtain ⟨i, hi⟩ := this.mp h
+
+    use i, C, ⟨a'.prop, b'.prop⟩
+  · rintro ⟨i, C, ⟨ha, hb⟩, hrel⟩
+    have hrel': (Componentwise.C' ..).union_rel .. := Exists.intro i hrel
+    rw [<-Componentwise.C'.reduction_equivalent (main_road C hcp) (main_road_cr _ hcp)] at hrel'
+    rw [SubARS.restrict_union] at hrel'
+    exact hrel'
+
+def locally_decreasing:
+    locally_decreasing (cp_dcr₂_ars hcp) := by
+  apply stronger_decreasing_imp_locally_decreasing
+  intro x y z i j ⟨hxy, hxz⟩
+
+  -- Without loss of generality i ≤ j, by symmetry of the diverging steps.
+  wlog hij: i ≤ j generalizing i j y z
+  · have ⟨d, hd⟩ := this z y j i hxz hxy (by omega)
+    aesop (add norm max_comm)
+
+  -- A step within a component also exists within the total ARS.
+  have hunion_lt {C: Component A} (i) (a b):
+      (Componentwise.C' (main_road C hcp) (main_road_cr _ hcp)).union_lt i a b → (cp_dcr₂_ars hcp).union_lt i a b := by
+    rintro ⟨j, hjlt, hjrel⟩
+    use j, hjlt, C, ⟨a.prop, b.prop⟩
+
+  -- x i-> y in some component C, and x j-> z in some component C₂
+  simp [cp_dcr₂_ars] at hxy hxz
+  obtain ⟨C, ⟨hx, hy⟩, hxy⟩ := hxy
+  obtain ⟨C₂, ⟨hx₂, hz⟩, hxz⟩ := hxz
+
+  -- because x is in both components, the components must be the same.
+  have heq: C = C₂ := component_unique x hx hx₂
+  subst heq
+
+  -- then by LD of an individual component (actually SD, but who's counting),
+  -- there is a reduct d of y and z, which we can reach using only 0-steps.
+  obtain ⟨d, hyd, hzd⟩
+    := Componentwise.C'.stronger_decreasing (main_road C hcp) (main_road_cr C hcp) ⟨x, hx⟩ ⟨y, hy⟩ ⟨z, hz⟩ i j ⟨hxy, hxz⟩ (hacyclic := main_road_acyclic C hcp)
+
+  use d
+  simp [hij] at hyd hzd ⊢
+  rw [(by simp: y = Subtype.val ⟨y, hy⟩), (by simp: z = Subtype.val ⟨z, hz⟩)]
+
+  -- the reduction sequences from y to d and z to d follow by lifting
+  -- `hyd` and `hzd` from the component into the total ARS.
+  constructor <;>
+  · apply ReflTransGen.lift _ (hunion_lt j) _
+    assumption
+
+end MultiComponent
+
+/-- Any ARS with the cofinality property is DCR₂ -/
+def cp_dcr₂ (hcp: cofinality_property A): DCRn 2 A := by
+  obtain ⟨linearorder, wellorder⟩ := exists_wellOrder α
+  use (MultiComponent.cp_dcr₂_ars hcp.to_conv)
+  constructor
+  · ext
+    exact MultiComponent.reduction_equivalent hcp.to_conv
+  · exact MultiComponent.locally_decreasing hcp.to_conv
+
+
+/-- DCR₂ is a complete method for proving confluence of countable ARSs. -/
+def dcr₂_complete [Countable α] (A: ARS α I) (hc: confluent A.union_rel): DCRn 2 A :=
+  -- A is countable and confluent => A has CP => A is DCR₂ by `cp_dcr₂`.
+  cnt_cr_imp_cp A hc |> cp_dcr₂ A
 
 end Thesis.TwoLabel

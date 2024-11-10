@@ -27,11 +27,11 @@ def locally_decreasing [PartialOrder I] [IsWellFounded I (· < ·)] (B: ARS α I
     ∃d, ((B.union_lt i)∗ • (B.rel j)⁼ • (B.union_lt i ∪ B.union_lt j)∗) b d ∧
         ((B.union_lt j)∗ • (B.rel i)⁼ • (B.union_lt i ∪ B.union_lt j)∗) c d
 
-def stronger_decreasing (B: ARS α ℕ) :=
+def stronger_decreasing [LinearOrder J] (B: ARS α J) :=
   ∀a b c i j, B.rel i a b ∧ B.rel j a c →
     ∃d, ((B.union_lt (max i j))∗) b d ∧ ((B.union_lt (max i j))∗) c d
 
-lemma stronger_decreasing_imp_locally_decreasing (B: ARS α ℕ):
+lemma stronger_decreasing_imp_locally_decreasing [LinearOrder J] [IsWellFounded J (· < ·)] {B: ARS α J}:
     stronger_decreasing B → locally_decreasing B := by
   intro h
   rintro a b c i j ⟨hab, hac⟩
@@ -42,16 +42,14 @@ lemma stronger_decreasing_imp_locally_decreasing (B: ARS α ℕ):
     by_cases h: max i j = j
     · rw [h] at hd₁
       apply ReflTransGen.mono Rel.union_right hd₁
-    · have: max i j = i := by
-        omega
+    · have: max i j = i := (max_choice i j).resolve_right h
       rw [this] at hd₁
       apply ReflTransGen.mono Rel.union_left hd₁
   · use c, (by rfl), c, (by rfl)
     by_cases h: max i j = j
     · rw [h] at hd₂
       apply ReflTransGen.mono Rel.union_right hd₂
-    · have: max i j = i := by
-        omega
+    · have: max i j = i := (max_choice i j).resolve_right h
       rw [this] at hd₂
       apply ReflTransGen.mono Rel.union_left hd₂
 
@@ -76,7 +74,7 @@ If an ARS is DCRn, it is DCR.
 It is somewhat unclear to me why we need these explicit universe annotations,
 and Lean can't just figure it out on its own, but I suppose it doesn't matter.
 -/
-lemma DCRn_imp_DCR: DCRn n A → DCR A := by
+lemma DCRn_imp_DCR {A: ARS α I}: DCRn n A → DCR A := by
   intro h
   obtain ⟨B, hb⟩ := h
   simp [DCR]
@@ -129,10 +127,6 @@ lemma locally_decreasing_components (n: ℕ) (B: ARS α { i | i < n }):
     · eta_expand at h ⊢
       simp [BS.restrict_union_lt, Rel.instUnion, Rel.union] at h ⊢
       exact ReflTransGen.lift Subtype.val (fun _ _ a ↦ a) h
-
-/-- Proof left as an exercise to the reader ;) -/
--- lemma DCR_imp_confluence: DCR A → confluent (A.rel ()) := by
---   sorry
 
 -- trivial example; i should find something actually interesting.
 def example_ars: ARS ℕ Unit where
@@ -645,8 +639,7 @@ def dcr_total.is_ld:
   have hunion_lt {C: Component A} (i) (a b):
       (dcr_component_ars C hcp').union_lt i a b → (dcr_total_ars A hcp').union_lt i a b := by
     rintro ⟨j, hjlt, hjrel⟩
-    use j, hjlt, C
-    aesop
+    use j, hjlt, C, ⟨a.prop, b.prop⟩
 
   -- x i-> y in some component C, and x j-> z in some component C₂
   simp [dcr_total_ars] at hxy hxz
