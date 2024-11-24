@@ -1,4 +1,4 @@
-import Thesis.RelProps
+import Thesis.BasicProperties
 
 section multiset_ext
 

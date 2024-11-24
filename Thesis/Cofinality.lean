@@ -1,8 +1,21 @@
-import Thesis.ReductionSeq
 import Thesis.ARS
-import Thesis.RelProps
+import Thesis.BasicProperties
 import Thesis.InfReductionSeq
 import Mathlib.Logic.Relation
+
+/-!
+
+# Cofinality, cofinal reductions, and related notions
+
+We explore various properties related to cofinality, defining the notion of a cofinal set and
+cofinal reduction, as well as the cofinality property (reduction graph and component versions).
+
+We then prove two standard theorems about these: CP => CR and CR + countable => CP.
+
+In later developments, we will need _acyclic_ cofinal reduction sequences. We therefore show that
+any cofinal reduction sequence can be made acyclic.
+
+-/
 
 namespace Thesis
 
@@ -66,15 +79,16 @@ lemma cp_imp_cr {A: ARS α I}: cofinality_property A → confluent A.union_rel :
     have := this hac hab nc hnc hcsc nb hnb hbsb (le_of_lt hle)
     tauto
 
-  have hbsc := hbsb.trans <| hseq.star nb nc hnc hle
+  have hbsc := hbsb.trans <| hseq.reflTrans nb nc hnc hle
 
   use (f nc)
   simp [S.star_restrict_union] at hcsc hbsc
   exact ⟨hbsc, hcsc⟩
 
 
--- A cofinal reduction sequence w.r.t. the reduction graph of a is also
--- cofinal w.r.t. the component of a. That means CP ↔ CP_conv.
+/--
+The reduction-graph version of the cofinality property and the component version are equivalent.
+-/
 lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := by
   constructor
   · show cofinality_property A → cofinality_property_conv A
@@ -105,10 +119,9 @@ lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := b
     intro hcp' a
 
     obtain ⟨N, f, hseq, hcr, hstart⟩ := hcp' a
-    have hstar := hseq.star 0
+    have hstar := hseq.reflTrans 0
 
-    simp only [reduction_seq.start, zero_le, true_implies, SubARS.star_restrict_union] at hstart hstar
-    rw [hstart] at hstar
+    simp_all only [reduction_seq.start, zero_le, true_implies, SubARS.star_restrict_union]
 
     have heq: (A.reduction_graph a).p = (A.union_rel∗ a ·) := A.reduction_graph_p
 
@@ -145,13 +158,13 @@ private def cnt_cr_imp_cp_aux {A: ARS α I} {S : SubARS A} (f : ℕ → S.Subtyp
 | 0 => a'
 | n + 1 => Classical.choose (common_reduct (cnt_cr_imp_cp_aux f a' common_reduct n) (f n))
 
-/--
-A countable, confluent ARS has the cofinality property.
--/
+--set_option trace.Meta.Tactic.simp.rewrite true
+
+/-- A countable, confluent ARS has the cofinality property. -/
 lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_property A := by
   intro a
   set S := A.reduction_graph a with S_def
-  set β := {b // S.p b} with β_def
+  set β := {b // S.p b}
 
   -- a is in its own reduction graph
   let a': β := ⟨a, by simp [S_def]; rfl⟩
@@ -167,11 +180,12 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
   -- every pair of elements in β must have a common reduct, by confluence
   have common_reduct (x y: β): ∃c, S.ars.union_rel∗ x c ∧ S.ars.union_rel∗ y c := by
     apply S.down_confluent_union A cr (a := a')
+    rcases x with ⟨x, hx⟩
+    rcases y with ⟨y, hy⟩
     constructor
-    · have := x.prop
-      simp_all [S.star_restrict_union]
-    · have := y.prop
-      simp_all [S.star_restrict_union]
+    · simpa (config := { zetaDelta := true }) [S.star_restrict_union] using hx
+    · simpa (config := { zetaDelta := true }) [S.star_restrict_union] using hy
+
 
   -- we can form a sequence of common reducts of aₙ
   let f' := cnt_cr_imp_cp_aux f a' common_reduct
@@ -179,9 +193,7 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
   -- this is a S.union_rel∗-reduction sequence
   have hf': reduction_seq S.ars.union_rel∗ ⊤ f' := by
     intro n _
-    simp [f']
-    have := Classical.choose_spec (common_reduct (f' n) (f n))
-    exact this.1
+    simpa! [f'] using (common_reduct (f' n) (f n)).choose_spec.left
 
   -- with a corresponding regular reduction sequence
   obtain ⟨N, g, hg⟩ := InfReductionSeq.rt_seq_imp_regular_seq f' hf'
@@ -203,12 +215,10 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
           omega
       · rfl
     · rw [<-heq, <-hn]
-      have := Classical.choose_spec (common_reduct (f' n) (f n))
-      simp [f']
-      exact this.2
+      simpa! [f'] using (common_reduct (f' n) (f n)).choose_spec.right
   · simp [reduction_seq.start]
     rw [<-hg.2.2]
-    simp [f', cnt_cr_imp_cp_aux]
+    simp! [f']
 
 
 end countable_confluent_imp_cp
@@ -242,7 +252,7 @@ The acyclic version of a finite cofinal reduction sequence is simply the
 last element of that reduction sequence.
 -/
 def acyclic_of_finite :=
-  reduction_seq.refl r (fun n ↦ hseq.end)
+  reduction_seq.refl r (fun _ ↦ hseq.end)
 
 lemma acyclic_of_finite.is_cofinal (hcf: cofinal_reduction hseq):
     cofinal_reduction <| acyclic_of_finite hseq := by
@@ -257,10 +267,15 @@ lemma acyclic_of_finite.is_cofinal (hcf: cofinal_reduction hseq):
   · trans b
     · exact hb
     subst heq
-    apply_mod_cast hseq.star
+    apply_mod_cast hseq.reflTrans
     all_goals omega
 
-def reduction_seq.acyclic (hseq: reduction_seq r N' f) := ∀⦃n m: ℕ⦄, n < N' → m < N' → f n = f m → n = m
+/--
+A reduction sequence is acyclic if two elements
+are equal only if their indices are the same.
+-/
+def reduction_seq.acyclic (_: reduction_seq r N' f) :=
+  ∀⦃n m: ℕ⦄, n < N' → m < N' → f n = f m → n = m
 
 lemma acyclic_of_finite.is_acyclic: (acyclic_of_finite hseq).acyclic := by
   simp [acyclic_of_finite, reduction_seq.acyclic]
@@ -316,7 +331,7 @@ lemma no_appears_infinitely_imp_appears_finitely: (¬∃n, appears_infinitely f 
 
 noncomputable def acyclic_of_appears_infinitely
     (hinf: ∃n, appears_infinitely f n) :=
-  reduction_seq.refl r (fun n ↦ f <| hinf.choose)
+  reduction_seq.refl r (fun _ ↦ f <| hinf.choose)
 
 include hcf in
 lemma acyclic_of_appears_infinitely.reduction_seq (hinf: ∃n, appears_infinitely f n):
@@ -326,14 +341,14 @@ lemma acyclic_of_appears_infinitely.reduction_seq (hinf: ∃n, appears_infinitel
   obtain hm := hinf.choose_spec
   set m := hinf.choose with m_def
 
-  have := hseq.star
+  have := hseq.reflTrans
   simp [acyclic_of_appears_infinitely]
   trans b
   use hab
   rw [<-heq]
 
   obtain ⟨n₂, hn₂⟩ := hm n
-  have := hseq.star n n₂
+  have := hseq.reflTrans n n₂
   simp at this
   rw [<-m_def, hn₂.2]
   apply this
@@ -351,16 +366,16 @@ noncomputable def f' (n: ℕ) :=
 
 include hseq in
 lemma hseq': reduction_seq r ⊤ (f' f hf) := by
-  intro n hn
+  intro n _
   dsimp [f']
   nth_rw 2 [f_idxs]
 
-  have ⟨heq, hneq⟩ := (hf ((f_idxs f hf n) + 1)).choose_spec
+  obtain ⟨heq, -⟩ := (hf ((f_idxs f hf n) + 1)).choose_spec
 
   simp only [<-heq, ENat.coe_lt_top, hseq]
 
 lemma arg_le_hf (n: ℕ): n ≤ (hf n).choose := by
-  have ⟨heq, hneq⟩ := (hf n).choose_spec
+  obtain ⟨-, hneq⟩ := (hf n).choose_spec
   by_contra! h
   apply hneq n h rfl
 
@@ -386,7 +401,7 @@ lemma hseq'.cofinal: cofinal_reduction (hseq' r f hseq hf) := by
   trans b
   · assumption
   · rw [<-heq]
-    apply hseq.star _ _ _ hge
+    apply hseq.reflTrans _ _ _ hge
     simp only [top_add, ENat.coe_lt_top]
 
 /--

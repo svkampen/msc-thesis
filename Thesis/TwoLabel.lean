@@ -2,7 +2,7 @@ import Thesis.DecreasingDiagrams
 
 namespace Thesis.TwoLabel
 
-namespace Componentwise
+namespace SingleComponent
 
 -- We can reuse the notions of main road and rewrite distance from
 -- the proof of proposition 14.2.30.
@@ -31,7 +31,6 @@ def on_main_road_imp_d0 {a} (heq: a ∈ main_road.elems):
     (dX a main_road.elems (hcr a)).val = 0 := by
   have: is_reduction_seq_from C.ars.union_rel a a (fun n ↦ a) 0 := by
     simp
-    exact reduction_seq.refl C.ars.union_rel fun n ↦ a
 
   by_contra h
   have hzerolt: 0 < (dX a main_road.elems (hcr a)).val := by
@@ -62,7 +61,7 @@ def step_minimizing (a b: C.Subtype) :=
 
 def step_minimizing_imp_step {a b: C.Subtype} (hs: step_minimizing main_road hcr a b):
     C.ars.union_rel a b := by
-  simp [step_minimizing] at hs
+  simp [step_minimizing] at hs ⊢
   tauto
 
 def C': ARS C.Subtype (Fin 2) where
@@ -95,10 +94,9 @@ lemma steps_on_main_road {n k: ℕ} (hk: n + k < N + 1):
   | zero => rfl
   | succ k ih =>
     have hlt: n + k < N := by
-      cases h: N
+      cases N
       · norm_cast; exact WithTop.coe_lt_top _
-      · rw [h] at hk
-        norm_cast at hk ⊢
+      · norm_cast at hk ⊢
         omega
     have hlt': n + k < N + 1 := lt_of_lt_of_le hlt le_self_add
     apply ReflTransGen.tail (ih hlt')
@@ -133,7 +131,7 @@ lemma main_road_join (a b: C.Subtype) (ha: a ∈ main_road.elems) (hb: b ∈ mai
   · rfl
 
 include hacyclic in
-/-- There is at most one b s.t. a ->₀ b. -/
+/-- Lemma 4.9 (iii): There is at most one b s.t. a ->₀ b. -/
 lemma zero_step_unique {a b b': C.Subtype}:
     (C' main_road hcr).rel 0 a b ∧ (C' main_road hcr).rel 0 a b' → b = b' := by
   rintro ⟨hb, hb'⟩
@@ -147,7 +145,7 @@ lemma zero_step_unique {a b b': C.Subtype}:
       tauto
 
     have d0 := on_main_road_imp_d0 main_road hcr hmem
-    -- steps a->b and a->b' cannot be minimizing, as a = 0 and 0 cannot be n + 1.
+    -- steps a->b and a->b' cannot be minimizing, as d(a) = 0 and 0 cannot be n + 1.
     replace hb: main_road.contains a b := by
       apply hb.resolve_right
       rw [step_minimizing]
@@ -346,7 +344,7 @@ lemma C'.stronger_decreasing: stronger_decreasing (C' main_road hcr) := by
     exact hd₂
 
 
-end Componentwise
+end SingleComponent
 
 variable (A: ARS α I)
 
@@ -358,18 +356,17 @@ def dcr₂_component (hcp: cofinality_property A): ∀(C: Component A), DCRn 2 C
   unfold DCRn
   obtain ⟨linorder, wellfounded⟩ := exists_wellOrder α
 
-  use Componentwise.C' (MainRoad.main_road C hcp.to_conv) (MainRoad.main_road_cr C hcp.to_conv)
+  use SingleComponent.C' (MainRoad.seq C hcp.to_conv) (MainRoad.is_cr C hcp.to_conv)
   constructor
   · ext
-    rw [<-Componentwise.C'.reduction_equivalent]
-  · apply stronger_decreasing_imp_locally_decreasing (Componentwise.C'.stronger_decreasing _ _)
-    exact MainRoad.main_road_acyclic C hcp.to_conv
+    rw [<-SingleComponent.C'.reduction_equivalent]
+  · apply stronger_decreasing_imp_locally_decreasing (SingleComponent.C'.stronger_decreasing _ _)
+    exact MainRoad.is_acyclic C hcp.to_conv
 
 
 namespace MultiComponent
 
 open Relation
-open MainRoad
 
 variable
   {α I: Type}
@@ -380,7 +377,7 @@ variable
 def cp_dcr₂_ars: ARS α (Fin 2) where
   rel := fun n a b ↦
     ∃(C: Component A) (h: C.p a ∧ C.p b),
-      (Componentwise.C' (main_road C hcp) (main_road_cr C hcp)).rel n ⟨a, h.1⟩ ⟨b, h.2⟩
+      (SingleComponent.C' (MainRoad.seq C hcp) (MainRoad.is_cr C hcp)).rel n ⟨a, h.1⟩ ⟨b, h.2⟩
 
 
 def reduction_equivalent: A.union_rel a b ↔ (cp_dcr₂_ars hcp).union_rel a b := by
@@ -391,15 +388,15 @@ def reduction_equivalent: A.union_rel a b ↔ (cp_dcr₂_ars hcp).union_rel a b 
     let a': C.Subtype := ⟨a, A.component_root_mem⟩
     let b': C.Subtype := ⟨b, EqvGen.rel _ _ h⟩
 
-    have := Componentwise.C'.reduction_equivalent (main_road C hcp) (main_road_cr _ hcp) a' b'
+    have := SingleComponent.C'.reduction_equivalent (MainRoad.seq C hcp) (MainRoad.is_cr _ hcp) a' b'
     simp [SubARS.restrict_union] at this
     obtain ⟨i, hi⟩ := this.mp h
 
     use i, C, ⟨a'.prop, b'.prop⟩
   · rintro ⟨i, C, ⟨ha, hb⟩, hrel⟩
-    have hrel': (Componentwise.C' ..).union_rel .. := Exists.intro i hrel
-    rw [<-Componentwise.C'.reduction_equivalent (main_road C hcp) (main_road_cr _ hcp)] at hrel'
-    rw [SubARS.restrict_union] at hrel'
+    have hrel': (SingleComponent.C' ..).union_rel .. := Exists.intro i hrel
+    rw [<-SingleComponent.C'.reduction_equivalent (MainRoad.seq C hcp) (MainRoad.is_cr _ hcp)] at hrel'
+    simp_rw [SubARS.restrict_union] at hrel'
     exact hrel'
 
 def locally_decreasing:
@@ -414,7 +411,7 @@ def locally_decreasing:
 
   -- A step within a component also exists within the total ARS.
   have hunion_lt {C: Component A} (i) (a b):
-      (Componentwise.C' (main_road C hcp) (main_road_cr _ hcp)).union_lt i a b → (cp_dcr₂_ars hcp).union_lt i a b := by
+      (SingleComponent.C' (MainRoad.seq C hcp) (MainRoad.is_cr _ hcp)).union_lt i a b → (cp_dcr₂_ars hcp).union_lt i a b := by
     rintro ⟨j, hjlt, hjrel⟩
     use j, hjlt, C, ⟨a.prop, b.prop⟩
 
@@ -430,7 +427,7 @@ def locally_decreasing:
   -- then by LD of an individual component (actually SD, but who's counting),
   -- there is a reduct d of y and z, which we can reach using only 0-steps.
   obtain ⟨d, hyd, hzd⟩
-    := Componentwise.C'.stronger_decreasing (main_road C hcp) (main_road_cr C hcp) ⟨x, hx⟩ ⟨y, hy⟩ ⟨z, hz⟩ i j ⟨hxy, hxz⟩ (hacyclic := main_road_acyclic C hcp)
+    := SingleComponent.C'.stronger_decreasing (MainRoad.seq C hcp) (MainRoad.is_cr C hcp) ⟨x, hx⟩ ⟨y, hy⟩ ⟨z, hz⟩ i j ⟨hxy, hxz⟩ (hacyclic := MainRoad.is_acyclic C hcp)
 
   use d
   simp [hij] at hyd hzd ⊢

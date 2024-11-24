@@ -1,4 +1,4 @@
-import Thesis.RelProps
+import Thesis.BasicProperties
 import Thesis.Multiset
 
 inductive Direction: Type where
@@ -191,7 +191,8 @@ lemma SymmSeq.no_peak_cases (hseq: SymmSeq r x y ss) (hnp: ¬hseq.has_peak):
         exact hseq₂
 
 
-lemma SymmSeq.only_dir (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = d): (r.dir d)∗ x y := by
+/-- A unidirectional symmetric sequence corresponds to some reflexive-transitive step. -/
+lemma SymmSeq.star_step_of_unidirectional (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = d): (r.dir d)∗ x y := by
   induction hseq with
   | refl => rfl
   | head d' hstep hseq ih =>
@@ -203,16 +204,16 @@ lemma SymmSeq.only_dir (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = d): (
     apply hss _ _ _ a
 
 
-lemma SymmSeq.no_peak_congr (hseq: SymmSeq r x y ss) (hnp: ¬hseq.has_peak): ∃d, r∗ x d ∧ r∗ y d := by
+lemma SymmSeq.reduct_of_not_peak (hseq: SymmSeq r x y ss) (hnp: ¬hseq.has_peak): ∃d, r∗ x d ∧ r∗ y d := by
   have := hseq.no_peak_cases hnp
   rcases this with h | h | ⟨l₁, l₂, -, -, -, hfw₁, hbw₂, hex⟩
   · use y
-    exact ⟨hseq.only_dir h, by rfl⟩
+    exact ⟨hseq.star_step_of_unidirectional h, by rfl⟩
   · use x
-    exact ⟨by rfl, rel_inv_star.mp <| hseq.only_dir h⟩
+    exact ⟨by rfl, star_inv_of_inv_star <| hseq.star_step_of_unidirectional h⟩
   · obtain ⟨z, h₁, h₂⟩ := hex
     use z
-    exact ⟨h₁.only_dir hfw₁, rel_inv_star.mp <| h₂.only_dir hbw₂⟩
+    exact ⟨h₁.star_step_of_unidirectional hfw₁, star_inv_of_inv_star <| h₂.star_step_of_unidirectional hbw₂⟩
 
 lemma SymmSeq.get_step (hseq: SymmSeq r x y ss) (n: ℕ) (hn: n < ss.length):
     (r.dir ss[n].dir) ss[n].start ss[n].end := by

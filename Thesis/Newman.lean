@@ -1,5 +1,5 @@
 /-
-Newman.lean - two proofs of Newman's Lemma.
+Newman.lean - three proofs of Newman's Lemma.
 
 We start with Barendregt's proof of Newman's lemma, which makes use of the notion
 of an ambiguous element, which always has an ambiguous successor if r is
@@ -7,9 +7,13 @@ weakly normalizing and weakly confluent. This contradicts strong normalization.
 Therefore, a relation which is strongly normalizing and weakly confluent
 cannot have ambiguous elements, hence it must be confluent.
 
-The second proof makes use of a number of more complicated constructs.
+The second proof makes use of well-founded induction.
+
+The third proof uses the notion of an order on conversion sequences, showing that, if `r` is
+strongly normalizing and weakly confluent, we can eliminate "peaks" in a conversion sequence
+and replace them with valleys in a way that is terminating.
 -/
-import Thesis.RelProps
+import Thesis.BasicProperties
 import Thesis.SymmSeq
 
 namespace Thesis.Newman
@@ -47,7 +51,6 @@ reduct which is also ambiguous (leading to an infinite sequence).
 def newman_ambiguous_step {r: Rel α α} (hwn: weakly_normalizing r) (hwc: weakly_confluent r) (a: α):
   ambiguous r a → ∃b, r a b ∧ ambiguous r b := by
     intro ha
-    unfold ambiguous at ha
     obtain ⟨d₁, d₂, ⟨hnf₁, hnf₂, hne, hpath₁, hpath₂⟩⟩ := ha
 
     cases hpath₁.cases_head <;> cases hpath₂.cases_head
@@ -84,7 +87,7 @@ def newman_ambiguous_step {r: Rel α α} (hwn: weakly_normalizing r) (hwc: weakl
 
 /-- Newman's lemma: strong normalization + local confluence implies confluence. -/
 def newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
-  have hwn: weakly_normalizing r := strongly_normalizing_imp_weakly_normalizing hsn
+  have hwn: weakly_normalizing r := wn_of_sn hsn
   suffices hun: unique_nf_prop_r r from unr_wn_imp_confluence hwn hun
   contrapose hsn with hun
   simp only [unique_nf_prop_r, not_forall] at hun
@@ -110,9 +113,9 @@ section strict_order_trans_inv
 variable {α} {r: Rel α α}
 
 /-- If `r` is strongly normalizing, the transitive closure of `r.inv` is a strict order. -/
-instance sn_imp_trans_strict_order [hsn: IsStronglyNormalizing r] : IsStrictOrder α (r.inv)⁺ where
+instance inv_trans_strict_order_of_sn (hsn: strongly_normalizing r) : IsStrictOrder α (r.inv)⁺ where
   irrefl := by
-    have hwf := (sn_iff_wf_inv r).mpr hsn.1
+    have hwf := (sn_iff_wf_inv r).mpr hsn
     have hwf' := WellFounded.transGen hwf
     have hsn' := (sn_iff_wf_inv r⁺).mp ?_
     · contrapose! hsn'
@@ -127,10 +130,9 @@ instance sn_imp_trans_strict_order [hsn: IsStronglyNormalizing r] : IsStrictOrde
       simp only [transGen_swap]
 
 /-- If `r` is strongly normalizing, the transitive closure of `r.inv` is well-founded. -/
-instance sn_imp_wf_trans_inv [hsn: IsStronglyNormalizing r]: IsWellFounded α (r.inv)⁺ where
+instance wf_inv_trans_of_sn (hsn: strongly_normalizing r): IsWellFounded α (r.inv)⁺ where
   wf := by
-    obtain ⟨sn⟩ := hsn
-    have: WellFounded r.inv := by exact (sn_iff_wf_inv r).mpr sn
+    have: WellFounded r.inv := by exact (sn_iff_wf_inv r).mpr hsn
     exact WellFounded.transGen this
 
 end strict_order_trans_inv
@@ -139,8 +141,7 @@ variable {r: Rel α α}
 
 /-- Newman's Lemma using well-founded induction w.r.t (r.inv)⁺. -/
 lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
-  have: IsStronglyNormalizing r := ⟨hsn⟩
-  have hwf: IsWellFounded α (r.inv)⁺ := inferInstance
+  have hwf: IsWellFounded α (r.inv)⁺ := wf_inv_trans_of_sn hsn
 
   rintro a
   induction' a using hwf.induction with a wf_ih
@@ -182,7 +183,7 @@ private lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direct
     ∃ss', SymmSeq r y x ss' ∧ ∀s' ∈ ss', ∃s ∈ ss, s' = (s.end, Direction.BW, s.start) := by
   induction hseq with
   | refl => use []; tauto
-  | head d hstep hseq ih =>
+  | head d hstep _hseq ih =>
     rename_i x y z ss
     obtain ⟨ss', hss'⟩ := ih (by intro s hs; apply hss; simp [hs])
 
@@ -202,8 +203,8 @@ private lemma symm_nm (hseq: SymmSeq r x y ss) (hss: ∀s ∈ ss, s.dir = Direct
       · simp_all
 
 /-- In a forward-only SymmSeq, there is a transitive step from the start to the end of any intermediate step. -/
-private lemma get_trans_step {step: Step α} (hseq: SymmSeq r x y ss) (hstep': step ∈ ss) (hss: ∀s ∈ ss, s.dir = Direction.FW):
-    r⁺ x step.end := by
+private lemma get_trans_step {s: Step α} (hseq: SymmSeq r x y ss) (hstep': s ∈ ss) (hss: ∀s ∈ ss, s.dir = Direction.FW):
+    r⁺ x s.end := by
   induction hseq with
   | refl => contradiction
   | head d hstep hseq ih =>
@@ -418,8 +419,7 @@ private lemma newman_step (hwc: weakly_confluent r) (hseq: SymmSeq r x y ss) (hp
 
 /-- Newman's Lemma, using a terminating peak-elimination procedure. -/
 lemma newman₃ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
-  have: IsStronglyNormalizing r := ⟨hsn⟩
-  have hwf: IsWellFounded α (r.inv)⁺ := inferInstance
+  have hwf: IsWellFounded α (r.inv)⁺ := wf_inv_trans_of_sn hsn
   have hwf': IsWellFounded (Multiset α) (MultisetExt (r.inv)⁺) := inferInstance
 
   apply conv_confluent_iff_confluent.mp
@@ -428,7 +428,7 @@ lemma newman₃ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
 
   suffices ∃ss', ∃(hseq': SymmSeq r a b ss'), ¬hseq'.has_peak by
     · obtain ⟨ss', hseq', hnp⟩ := this
-      apply hseq'.no_peak_congr hnp
+      apply hseq'.reduct_of_not_peak hnp
 
   by_contra! h
   let hset := {M | ∃ss, ∃(hseq: SymmSeq r a b ss), M = Multiset.ofList hseq.elems}

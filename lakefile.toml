@@ -3,12 +3,11 @@ defaultTargets = ["Thesis"]
 
 [leanOptions]
 pp.unicode.fun = true
-linter.unusedVariables = false
 
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-rev = "v4.13.0"
+rev = "e69c306"
 
 [[lean_lib]]
 name = "Thesis"

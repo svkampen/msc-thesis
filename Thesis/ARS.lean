@@ -1,6 +1,14 @@
 import Mathlib.Logic.Relation
 import Mathlib.Tactic
-import Thesis.RelProps
+import Thesis.BasicProperties
+
+/-!
+
+# Abstract Rewriting Systems
+Here, we define the basic structure of an abstract rewriting system.
+We also define some derived structures, namely that of a sub-ARS and a component.
+
+-/
 
 namespace Thesis
 
@@ -14,6 +22,7 @@ and an indexed set of rewrite relations on `α` over `I` (`ARS.rel`).
 -/
 @[ext]
 structure ARS (α I : Type*) where
+  /-- The rewrite relations for this ARS. -/
   rel : I → Rel α α
 
 variable {α I}
@@ -28,16 +37,22 @@ abbrev ARS.union_rel: Rel α α :=
 abbrev ARS.union_lt [PartialOrder I] (A: ARS α I): I → Rel α α :=
   fun i x y ↦ ∃j, j < i ∧ A.rel j x y
 
+/--
+If a -> b with an index smaller than i, then certainly a -> b with an index smaller than (max i j).
+-/
 lemma ARS.union_lt_max [LinearOrder I] (A: ARS α I) (a b: α):
     A.union_lt i a b → A.union_lt (max i j) a b := by
   intro h
-  rcases (max_cases i j) with (⟨heq₁, heq₂⟩ | ⟨heq₁, heq₂⟩)
+  rcases (max_cases i j) with (⟨heq₁, -⟩ | ⟨heq₁, heq₂⟩)
   · rwa [heq₁]
   · rw [heq₁]
     obtain ⟨k, hlt, hrel⟩ := h
     have hlt': k < j := gt_trans heq₂ hlt
     use k, hlt', hrel
 
+/--
+If `i ≤ j`, then `A.union_lt i` is a subset of `A.union_lt j`.
+-/
 lemma ARS.union_lt_trans [LinearOrder I] (A: ARS α I) (a b: α) {i j} (hij: i ≤ j):
     A.union_lt i a b → A.union_lt j a b := by
   rintro ⟨k, hklt, hkrel⟩
@@ -46,48 +61,38 @@ lemma ARS.union_lt_trans [LinearOrder I] (A: ARS α I) (a b: α) {i j} (hij: i �
 
 /--
 The convertability relation ≡ generated from the union of ARS relations.
-Note that this is denoted using `=` in TeReSe, which we use for true equality.
+Note that this is denoted using `=` in TeReSe, which we use for equality.
 -/
 abbrev ARS.conv: Rel α α :=
-  EqvGen A.union_rel
-
-/-- `x ⇒ y` means x one-step reduces to y. -/
-local infixr:60 (priority := high) " ⇒ " => A.union_rel
-
-/-- `x ⇒∗ y` means x reduces to y reflexive-transitively. -/
-local infixr:60 (priority := high) " ⇒∗ " => A.union_rel∗
-
--- I don't love this notation, but oh well..
-local notation:50 (priority := high) x:51 " ⇒[" i "]" y:50 => A.rel i x y
-local notation:50 (priority := high) x:51 " ⇒∗[" i "]" y:50 => (A.rel i)∗ x y
+  A.union_rel≡
 
 /--
-`S: ARS {b: β // p b} I` is a sub-ARS of `B: ARS β I` if:
-- `S.rel i` is the _restriction_ of `B.rel i` to `{b // p b}`, that is
-  `a` reduces to `b` in `S.rel i` iff `a` reduces to `b` in `B.rel i`.
-- `S` is _closed_ under `B.rel i`; if `a` reduces to `b` in `B.rel i`
-  and `a` is in `S`, `b` must be in `S`.
+`SubARS B` is a sub-ARS of B.
 -/
 @[ext]
 structure SubARS (B: ARS β I) where
+  /-- This SubARS contains the elements in the subtype `{b // p b}`. -/
   p: β → Prop
+  /-- The underlying ARS of this SubARS. -/
   ars: ARS {b: β // p b} I
-  restrict: ∀i a b, ars.rel i a b ↔ B.rel i a b
-  closed: ∀i a b, p a ∧ B.rel i a b → p b
+  /-- `SubARS.ars.rel i` is the _restriction_ of `B.rel i` to the subtype. -/
+  restrict: ∀(i: I) (a b: {b // p b}), ars.rel i a b ↔ B.rel i a b
+  /-- `{b // p b}` is _closed_ under `B.rel i` -/
+  closed: ∀(i: I) (a b: β), p a ∧ B.rel i a b → p b
 
+attribute [simp] SubARS.restrict
+
+/-- The subtype of this SubARS. -/
 @[simp]
 abbrev SubARS.Subtype {A: ARS β I} (S: SubARS A) := {b // S.p b}
 
+/-- The restriction property of a SubARS extends to the union of rewrite relations. -/
+@[simp]
 lemma SubARS.restrict_union {A: ARS α I} (S: SubARS A): (∀a b, S.ars.union_rel a b ↔ A.union_rel a b) := by
   intro a b
-  constructor
-  all_goals (
-    intro h'
-    obtain ⟨i, hi⟩ := h'
-    use i
-    rw [S.restrict] at *
-    assumption)
+  simp [ARS.union_rel]
 
+/-- The closure property of a SubARS extends to the union of rewrite relations. -/
 lemma SubARS.closed_union {A: ARS α I} (S: SubARS A): ∀a b, S.p a ∧ A.union_rel a b → S.p b := by
   rintro a b ⟨h₁, h₂⟩
   obtain ⟨i, hi⟩ := h₂
@@ -95,18 +100,12 @@ lemma SubARS.closed_union {A: ARS α I} (S: SubARS A): ∀a b, S.p a ∧ A.union
   tauto
 
 
+/-- The restriction property of a SubARS extends to the (partial) union of rewrite relations. -/
 lemma SubARS.restrict_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A):
     (∀i a b, S.ars.union_lt i a b ↔ A.union_lt i a b) := by
-  intro i a b
   simp [ARS.union_lt]
-  constructor
-  all_goals (
-    intro h'
-    obtain ⟨j, hj⟩ := h'
-    use j, hj.left
-    rw [S.restrict] at *
-    tauto)
 
+/-- The closure property of a SubARS extends to the (partial) union of rewrite relations. -/
 lemma SubARS.closed_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A):
     ∀i a b, S.p a ∧ A.union_lt i a b → S.p b := by
   rintro i a b ⟨h₁, h₂⟩
@@ -115,25 +114,27 @@ lemma SubARS.closed_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A):
   tauto
 
 
-/-- The sub-ARS generated by a subtype of β (represented by p) -/
-def ARS.gen_sub (B: ARS β I) (p: β → Prop) : SubARS B :=
-  { p := (fun b ↦ ∃a, p a ∧ B.union_rel∗ a b)
-    ars := ⟨fun i a b ↦ B.rel i a b⟩,
-    restrict := by simp,
-    closed := by
-      rintro i a b ⟨⟨a', ha'⟩, h₂⟩
-      use a', ha'.left
-      apply ReflTransGen.tail ha'.right (Exists.intro i h₂)
-  }
+/-- The sub-ARS generated by a subset of β -/
+def SubARS.generate (B: ARS β I) (s: Set β) : SubARS B where
+  p := (fun b ↦ ∃a, a ∈ s ∧ B.union_rel∗ a b)
+  ars := ⟨fun i a b ↦ B.rel i a b⟩
+  restrict := by simp
+  closed := by aesop (add unsafe 25% ReflTransGen.tail)
 
-def ARS.reduction_graph (B: ARS β I) (b: β) : SubARS B := by
-  have := ARS.gen_sub B (fun b' ↦ (b' = b))
-  simpa [exists_eq_left]
+/--
+The reduction graph of an element b in an ARS B is the sub-ARS containing all reducts of b.
+-/
+def ARS.reduction_graph (B: ARS β I) (b: β) : SubARS B :=
+  SubARS.generate B {b}
 
 @[simp]
 lemma ARS.reduction_graph_p: (A.reduction_graph a).p = (A.union_rel∗ a ·) := by
-  simp [ARS.reduction_graph, ARS.gen_sub]
+  simp [ARS.reduction_graph, SubARS.generate]
 
+
+/--
+A component of A is a sub-ARS of A containing elements that are convertible to one another.
+-/
 @[ext]
 structure Component extends SubARS A where
   component_restrict: ∀{a b}, p a → p b → A.conv a b
@@ -156,9 +157,14 @@ def ARS.component (a: α): Component A where
   component_closed := EqvGen.trans _ _ _
   component_nonempty := ⟨a, by rfl⟩
 
+/-- The set of components of this ARS. -/
 def ARS.components: Set (Component A) :=
   A.component '' Set.univ
 
+/--
+A component is unique; that is to say, if any element appears in two components, the components
+must be the equal to one another.
+-/
 lemma component_unique {A: ARS α I} {c₁ c₂: Component A} (a: α):
     c₁.p a → c₂.p a → c₁ = c₂ := by
   rintro ha₁ ha₂
@@ -188,6 +194,7 @@ lemma component_unique {A: ARS α I} {c₁ c₂: Component A} (a: α):
       apply this prop_eq c₁.ars c₂.ars A c₁.restrict c₂.restrict
 
 
+/-- The element from which a component is derived is trivially a member of that component. -/
 lemma ARS.component_root_mem {A: ARS α I}: (A.component a).p a := by
   simp [ARS.component]
   rfl
@@ -208,8 +215,8 @@ private lemma restrict_aux {p: α → Prop}
   constructor <;> intro h'
   · induction h' with
     | refl => exact ReflTransGen.refl
-    | tail h₁ h₂ ih =>
-      exact ReflTransGen.tail ih <| (hrestrict _ _).mp h₂
+    | tail _ h ih =>
+      exact ReflTransGen.tail ih <| (hrestrict _ _).mp h
   · rcases a with ⟨a', ha'⟩
     simp [Subtype.mk] at h'
     induction h' using ReflTransGen.head_induction_on with
@@ -226,6 +233,7 @@ private lemma restrict_aux {p: α → Prop}
 The restriction property of a sub-ARS extends to the reflexive-transitive closure
 of its reduction relations.
 -/
+@[simp]
 lemma SubARS.star_restrict {A: ARS α I} (S: SubARS A):
     (∀i a b, (S.ars.rel i)∗ a b ↔ (A.rel i)∗ a b) :=
   fun i ↦ restrict_aux (S.restrict i) (S.closed i)
@@ -234,11 +242,15 @@ lemma SubARS.star_restrict {A: ARS α I} (S: SubARS A):
 The restriction property of a sub-ARS extends to the reflexive-transitive closure
 of the union of its reduction relations.
 -/
+@[simp]
 lemma SubARS.star_restrict_union {A: ARS α I} (S: SubARS A):
     (∀a b, S.ars.union_rel∗ a b ↔ A.union_rel∗ a b) :=
   restrict_aux S.restrict_union S.closed_union
 
-
+/--
+The restriction property of a sub-ARS extends to the reflexive-transitive closure
+of the (partial) union of its reduction relations.
+-/
 @[simp]
 lemma SubARS.star_restrict_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A):
     (∀i a b, (S.ars.union_lt i)∗ a b ↔ (A.union_lt i)∗ a b) :=
@@ -270,6 +282,10 @@ of the union of its reduction relations.
 lemma SubARS.star_closed_union {A: ARS α I} (S: SubARS A): (∀a b, S.p a ∧ (A.union_rel∗ a b) → S.p b) :=
   closure_aux (S.closed_union)
 
+/--
+The closure property of a sub-ARS extends to the reflexive-transitive closure
+of the (partial) union of its reduction relations.
+-/
 lemma SubARS.star_closed_union_lt {A: ARS α I} [PartialOrder I] (S: SubARS A):
     (∀i a b, S.p a ∧ (A.union_lt i)∗ a b → S.p b) :=
   fun i ↦ closure_aux <| S.closed_union_lt i
@@ -304,13 +320,25 @@ lemma SubARS.down_sn (S: SubARS A): ∀i, strongly_normalizing (A.rel i) -> stro
   contrapose! hsn
   obtain ⟨f, hf⟩ := hsn
   use (λn => f n)
-  intro n
-  apply (S.restrict i _ _).mp
-  exact hf n
+  simpa using hf
 
--- etc, sub-ARS also preserves WCR, subcommutative, DP, WN, WF, UN, NF, Ind, Inc, FB, CP
--- prove them as needed
+/-- A sub-ARS of a weakly confluent ARS is weakly confluent. -/
+lemma SubARS.down_wcr_union (S: SubARS A): weakly_confluent (A.union_rel) → weakly_confluent (S.ars.union_rel) := by
+  intro hwc
+  rintro a b c ⟨hab, hac⟩
+
+  simp at hab hac
+  obtain ⟨d, hd₁, hd₂⟩ := hwc ⟨hab, hac⟩
+
+  let d': { b // S.p b } := ⟨d, S.star_closed_union b d ⟨b.prop, hd₁⟩⟩
+  use d'
+  simp_all
+
+
+-- etc, sub-ARS also preserves subcommutative, DP, WN, WF, UN, NF, Ind, Inc, FB, CP
 
 end ars_def
+
+variable (A: ARS α I) (S: SubARS A)
 
 end Thesis
