@@ -19,11 +19,10 @@ open Relation
 
 variable {α I: Type*} (r: Rel α α)
 
+/-- If an element is strongly normalizing, so is every element in its reduction graph. -/
 private lemma elem_graph_sn (A: ARS α Unit):
     strongly_normalizing' A.union_rel a → strongly_normalizing ((A.reduction_graph a).ars.union_rel) := by
-  intro hsn'
-  intro hsn
-  obtain ⟨f, hseq⟩ := hsn
+  rintro hsn' ⟨f, hseq⟩
 
   have: (A.union_rel)∗ a (f 0) := by
     have := (f 0).prop
@@ -33,13 +32,14 @@ private lemma elem_graph_sn (A: ARS α Unit):
   apply hsn'
 
   obtain ⟨N', f', hseq', heq₁, heq₂⟩ := reduction_seq.from_reflTrans this
-  have := hseq'.concat _ _ _ hseq heq₂
+  have := hseq'.concat hseq heq₂
   simp at this
   use (fun_aux N' f' (fun n ↦ f n))
   simp [fun_aux, heq₁]
   exact this
 
 
+/-- If `I := Unit`, `A.union_rel = A.rel ()`. -/
 private lemma union_rel_unit (A: ARS α Unit): A.union_rel = A.rel () := by
   ext
   simp [ARS.union_rel]
@@ -57,13 +57,10 @@ lemma not_increasing_of_infinite_common_reduct (hseq: reduction_seq r⁺ ⊤ f) 
   -- b must have some value under g.
   let n := g b
 
+  -- `g` after `f` must be strictly monotone.
   have hsm: StrictMono (g ∘ f) := by
     apply strictMono_nat_of_lt_succ
-    intro n
-    apply hg
-    apply hseq
-
-    all_goals simp only [top_add, ENat.coe_lt_top, lt_add_one]
+    exact fun n ↦ hg (hseq n <| ENat.coe_lt_top _)
 
   -- By strict monotonicity, we have n ≤ g (f n)
   have hle: n ≤ g (f n) := by
@@ -159,7 +156,7 @@ private lemma step_aux (hwcr: weakly_confluent r) (a₀ nf: α)
 
     obtain ⟨N', f', seqbc, seqbstart, seqcend⟩ := reduction_seq.from_reflTrans hbc
 
-    have := reduction_seq.concat r N' ⊤ seqbc hseq (by rw [hstart, seqcend])
+    have := reduction_seq.concat seqbc hseq (by rw [hstart, seqcend])
     use (fun_aux N' f' f), ?_, this
     simp [fun_aux, seqbstart]
 

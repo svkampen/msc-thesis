@@ -207,7 +207,7 @@ theorem confluent_of_strongly_confluent:
     strongly_confluent r → confluent r := by
   intros; simp [<-semi_confluent_iff_confluent, *]
 
-/-- An element a is a normal form in r if there are no b s.t. r a b. -/
+/-- An element `a` is a _normal form_ in `r` if there are no `b` s.t. `r a b`. -/
 abbrev normal_form (a: α) :=
   ¬∃b, r a b
 
@@ -241,7 +241,7 @@ A relation has the _unique normal form property with respect to reduction_
 if all normal forms with a common expansion are equal.
 -/
 def unique_nf_prop_r :=
-  ∀a b, normal_form r a ∧ normal_form r b → (∃c, r∗ c a ∧ r∗ c b) → a = b
+  ∀a b c, normal_form r a ∧ normal_form r b → r∗ c a ∧ r∗ c b → a = b
 
 /-- A relation is _complete_ if it is confluent and strongly normalizing. -/
 def complete := confluent r ∧ strongly_normalizing r
@@ -284,54 +284,43 @@ def acyclic := ∀a b, r⁺ a b → a ≠ b
 
 /-- If r⁻¹ is well-founded, then r is strongly normalizing. -/
 lemma sn_of_wf_inv: WellFounded (r.inv) → strongly_normalizing r := by
-  rintro hwf ⟨f, hf⟩
-  obtain ⟨a, ⟨hmem, hmin⟩⟩ := hwf.has_min (f '' Set.univ) (Set.image_nonempty.mpr Set.univ_nonempty)
-  obtain ⟨n, rfl⟩: ∃n, f n = a := by rwa [<-Set.mem_range, <-Set.image_univ]
-  apply hmin (f (n + 1))
-  · simp only [Set.image_univ, Set.mem_range, exists_apply_eq_apply]
-  · simpa only [ENat.coe_lt_top, forall_const] using hf n
+  intro hwf ⟨f, hseq⟩
+  generalize h: f 0 = a
+  induction a using hwf.induction generalizing f with
+  | h a ih =>
+    subst h
+    apply ih (f 1) (hseq 0 ENat.top_pos) (fun n ↦ f (n + 1))
+    all_goals aesop
 
 /--
 If r is strongly normalizing, then r⁻¹ is well-founded.
 
-This is more difficult than the inverse (`sn_of_wf_inv`).
-
-We first translate WellFounded to its equivalent "relation has a minimum on all sets"
-Then, we take the contrapositive. That way, we get a "step" formula, telling us there
-is a next element `x ∈ s` for each element `m ∈ s` which is related through `r x m`.
-
-`choose!` transforms this formula into a function along with hypotheses on it.
-This is really the crucial step. I previously attempted to directly define a
-recursive function `f: ℕ → α` which provides the witness for strongly_normalizing,
-but you get into all sorts of problems attempting this. It is much more effective
-to define a step function `f: α → α` and derive `f^[·] x : ℕ → α` from it.
-
-Afterwards, it is an easy induction.
+Take the contrapositive, i.e. ¬WF → ¬SN. Assume `r` is not well-founded. Then it has an
+inaccessible element. Any inaccessible element must have a descendent which is inaccessible.
+This leads to an infinite sequence of inaccessible elements. Hence, `r` cannot be strongly normalizing.
 -/
 lemma wf_inv_of_sn: strongly_normalizing r → WellFounded (r.inv) := by
   intro hsn
-  rw [WellFounded.wellFounded_iff_has_min]
-  contrapose! hsn with hwf
-  obtain ⟨s, ⟨⟨x, hx⟩, hstep⟩⟩ := hwf
-
+  constructor
+  contrapose! hsn with hacc
   push_neg
+  obtain ⟨a, ha⟩ := hacc
 
-  choose! f hmem hrel using hstep
+  have acc_step: ∀a, ¬Acc r.inv a → ∃x, r.inv x a ∧ ¬Acc r.inv x := by
+    intro a
+    contrapose!
+    exact Acc.intro a
 
-  use (f^[·] x)
-  have : ∀N, f^[N] x ∈ s := Function.Iterate.rec _ hmem hx
+  choose! f hf hf' using acc_step
 
-  simpa [↓Function.iterate_succ'] using fun n ↦ hrel _ (this n)
+  use (f^[·] a)
+  have: ∀N, ¬Acc r.inv (f^[N] a) := Function.Iterate.rec _ hf' ha
+
+  simpa [↓Function.iterate_succ'] using (fun n ↦ hf _ (this n))
 
 /-- If a relation is strongly normalizing, its inverse is well-founded, and vice versa. -/
 lemma sn_iff_wf_inv: WellFounded (r.inv) ↔ strongly_normalizing (r) :=
   ⟨sn_of_wf_inv r, wf_inv_of_sn r⟩
-
-private lemma nwn_step (a : α): ¬weakly_normalizing' r a → ∀b, r∗ a b → ∃c, r b c := by
-  intro hwn
-  contrapose! hwn
-  obtain ⟨b, hb⟩ := hwn; use b
-  simp_all only [not_exists, not_false_eq_true, implies_true, and_self]
 
 /-- Strong normalization implies weak normalization. -/
 lemma wn_of_sn {r: Rel α α}: strongly_normalizing r → weakly_normalizing r := by

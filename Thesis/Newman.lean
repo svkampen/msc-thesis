@@ -38,7 +38,8 @@ def unr_wn_imp_confluence ⦃α⦄ ⦃r: Rel α α⦄ (hwn: weakly_normalizing r
   have had₁: r∗ a d₁ := ReflTransGen.trans hab hd₁.right
   have had₂: r∗ a d₂ := ReflTransGen.trans hac hd₂.right
 
-  have hdeq: d₁ = d₂ := by apply hu; tauto; use a
+  have hdeq: d₁ = d₂ :=
+    hu d₁ d₂ a ⟨hd₁.left, hd₂.left⟩ ⟨had₁, had₂⟩
 
   use d₁, hd₁.right
   rw [hdeq]
@@ -92,7 +93,7 @@ def newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r 
   contrapose hsn with hun
   simp only [unique_nf_prop_r, not_forall] at hun
 
-  obtain ⟨d₁, d₂, ⟨⟨hnf₁, hnf₂⟩, ⟨a, hpath₁, hpath₂⟩, hne⟩⟩ := hun
+  obtain ⟨d₁, d₂, a, ⟨⟨hnf₁, hnf₂⟩, ⟨hpath₁, hpath₂⟩, hne⟩⟩ := hun
 
   choose! f h₁ h₂ using (newman_ambiguous_step hwn hwc)
   have h₃: ∀N, ambiguous r (f^[N] a) := Function.Iterate.rec _ h₂ (by use d₁, d₂)

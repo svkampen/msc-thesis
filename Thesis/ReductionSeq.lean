@@ -109,26 +109,7 @@ def reduction_seq.contains {r: Rel α α} (hseq: reduction_seq r N f) (a b: α) 
 def fun_aux (N: ℕ) (f g: ℕ → α): ℕ → α :=
   fun n ↦ if (n ≤ N) then f n else g (n - N)
 
-def reduction_seq.concat' (N₁ N₂: ℕ)
-    (hseq: reduction_seq r N₁ f) (hseq': reduction_seq r N₂ g)
-    (hend: f N₁ = g 0):
-    reduction_seq r (N₁ + N₂) (fun_aux N₁ f g) := by
-  intro n hn
-  simp [fun_aux]
-  norm_cast at *
-  split_ifs
-  · -- case within hseq
-    apply hseq n (by norm_cast)
-  · -- case straddling hseq and hseq'
-    have: n = N₁ := by omega
-    aesop
-  · -- invalid straddling case (n > N₁, n + 1 ≤ N₁)
-    omega
-  · -- case within hseq'
-    convert hseq' (n - N₁) (by norm_cast; omega) using 2
-    omega
-
-def reduction_seq.concat (N₁: ℕ) (N₂: ℕ∞)
+def reduction_seq.concat {r} {N₁: ℕ} {N₂: ℕ∞}
     (hseq: reduction_seq r N₁ f) (hseq': reduction_seq r N₂ g)
     (hend: f N₁ = g 0):
     reduction_seq r (N₁ + N₂) (fun_aux N₁ f g) := by
