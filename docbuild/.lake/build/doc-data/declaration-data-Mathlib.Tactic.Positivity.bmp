@@ -1,0 +1,1 @@
+{"name":"Mathlib.Tactic.Positivity","instances":[],"imports":["Init","Mathlib.Tactic.Positivity.Basic","Mathlib.Tactic.Positivity.Finset","Mathlib.Tactic.NormNum.Basic","Mathlib.Data.Int.Order.Basic"],"declarations":[]}

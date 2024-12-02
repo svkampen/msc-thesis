@@ -1,0 +1,1 @@
+{"name":"Thesis","instances":[],"imports":["Init","Thesis.ARS","Thesis.Cofinality","Thesis.Multiset","Thesis.Newman","Thesis.ReductionSeq","Thesis.BasicProperties","Thesis.SymmSeq","Thesis.InfReductionSeq","Thesis.DecreasingDiagrams","Thesis.Misc","Thesis.TwoLabel","Thesis.WCRWNInc"],"declarations":[]}

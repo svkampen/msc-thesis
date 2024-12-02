@@ -1,0 +1,1 @@
+{"name":"Mathlib.Tactic.CancelDenoms","instances":[],"imports":["Init","Mathlib.Tactic.CancelDenoms.Core","Mathlib.Tactic.NormNum.Ineq"],"declarations":[]}
