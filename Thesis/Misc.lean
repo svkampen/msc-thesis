@@ -4,6 +4,13 @@ import Mathlib.Data.Rel
 
 open Relation
 
+inductive SymmGen (r: Rel α α): Rel α α where
+| fw_step: r x y → SymmGen r x y
+| bw_step: r y x → SymmGen r x y
+
+attribute [aesop 25% unsafe] SymmGen.fw_step
+attribute [aesop 25% unsafe] SymmGen.bw_step
+
 @[simp]
 def Rel.union: Rel α β → Rel α β → Rel α β :=
   fun r₁ r₂ x y ↦ (r₁ x y) ∨ (r₂ x y)

@@ -193,11 +193,22 @@ inductive ReductionSeq: α → α → List (RSStep α) → Prop
 
 end rs_def
 
+attribute [simp] ReductionSeq.refl
+attribute [aesop 25% unsafe] ReductionSeq.head
+
 variable {r: Rel α α}
 
 namespace ReductionSeq
 
 def elems (_: ReductionSeq r x y ss) := x :: (ss.map RSStep.stop)
+
+def elems' (_: ReductionSeq r x y ss) := ss.map RSStep.start ++ [y]
+
+lemma elems_eq_elems' (hseq: ReductionSeq r x y ss): hseq.elems = hseq.elems' := by
+  induction hseq with
+  | refl => rfl
+  | head hstep hseq ih =>
+    simp_all [elems, elems']
 
 lemma y_elem (hseq: ReductionSeq r x y ss): y ∈ hseq.elems := by
   induction hseq with
@@ -206,6 +217,7 @@ lemma y_elem (hseq: ReductionSeq r x y ss): y ∈ hseq.elems := by
     simp [elems] at ih ⊢
     tauto
 
+@[aesop 10% unsafe]
 lemma tail (hr: ReductionSeq r x y ss) (hstep: r y z): ReductionSeq r x z (ss ++ [⟨y, z⟩]) := by
   induction hr with
   | refl => simp; apply head hstep; apply refl
@@ -311,6 +323,10 @@ lemma of_reduction_seq (N: ℕ) (f: ℕ → α) (hrs: reduction_seq r N f):
       rw [hn', Nat.succ_eq_add_one]
       tauto
 
+lemma to_reflTrans (hseq: ReductionSeq r x y ss): r∗ x y := by
+  apply exists_iff_rel_star.mpr
+  use ss
+
 /--
 A reflexive-transitive reduction sequence `a₀ ->* a₁ ->* ... ->* aₙ` can be
 'flattened' (by analogy to a nested list) to a regular reduction sequence
@@ -334,6 +350,210 @@ lemma flatten (hseq: ReductionSeq r∗ x y ss):
     · have := hmem a (by simp [elems] at ha ⊢; tauto)
       simp only [elems, List.mem_cons] at this
       right; assumption
+
+lemma get_step (hseq: ReductionSeq r x y ss) (s: RSStep α) (hs: s ∈ ss):
+    r s.start s.stop := by
+  induction hseq with
+  | refl => contradiction
+  | @head x y z ss step seq ih => aesop
+
+@[simp]
+lemma empty_iff: ReductionSeq r x y [] ↔ x = y := by
+  constructor
+  · intro h
+    cases h
+    rfl
+  · rintro rfl
+    exact refl
+
+lemma last (hseq: ReductionSeq r x y (ss' ++ [b])): b.stop = y := by
+  generalize hss: ss' ++ [b] = ss
+  rw [hss] at hseq
+  induction hseq generalizing ss' b with
+  | refl => aesop
+  | head hstep hseq ih =>
+    rename_i x y z ss
+    cases ss'
+    · aesop
+    · aesop
+
+def has_peak (hseq: ReductionSeq (SymmGen r) x y ss) :=
+  ∃(n: ℕ) (h: n < ss.length - 1), r ss[n].stop ss[n].start ∧ r ss[n + 1].start ss[n + 1].stop
+
+def steps_reversed: List (RSStep α) → List (RSStep α)
+| [] => []
+| (x::xs) => steps_reversed xs ++ [{ start := x.stop, stop := x.start }]
+
+lemma steps_reversed_append:
+      steps_reversed (xs ++ ys) = steps_reversed ys ++ steps_reversed xs
+    := by
+  induction xs with
+  | nil => simp!
+  | cons head tail ih =>
+    simp! [ih]
+
+lemma steps_reversed_mem (hs: s ∈ ss): ⟨s.stop, s.start⟩ ∈ (steps_reversed ss) := by
+  induction ss with
+  | nil => contradiction
+  | cons head tail ih =>
+    simp at hs
+    rcases hs with (hs | hs)
+    · simp! [hs]
+    · simp only [steps_reversed]
+      aesop
+
+lemma steps_reversed_add: steps_reversed (ss ++ [s]) = ⟨s.stop, s.start⟩::(steps_reversed ss) := by
+  induction ss generalizing s with
+  | nil => rfl
+  | cons head tail ih =>
+    simp! [ih]
+
+@[simp]
+lemma steps_reversed_reversed: steps_reversed (steps_reversed ss) = ss := by
+  induction ss with
+  | nil => rfl
+  | cons head tail ih =>
+    simp! [steps_reversed_add]
+    exact ih
+
+lemma step_start_stop (hseq: ReductionSeq r x y ss) (n: ℕ) (hn: n < ss.length - 1):
+    ss[n].stop = ss[n + 1].start := by
+  induction hseq generalizing n with
+  | refl => contradiction
+  | head hstep hseq ih =>
+    cases hseq
+    · contradiction
+    rcases n with (_ | n) <;> aesop
+
+lemma take (hseq : ReductionSeq r x y ss) (n : ℕ) (hn : n ≤ ss.length):
+    ReductionSeq r x (hseq.elems[n]'(by simp [elems]; omega)) (List.take n ss) := by
+  induction hseq generalizing n with
+  | refl => simp_all [elems]
+  | head hstep hseq ih =>
+    simp at hn
+    simp [elems]
+    cases n <;> aesop
+
+lemma drop (hseq: ReductionSeq r x y ss) (n: ℕ) (hn: n ≤ ss.length):
+    ReductionSeq r (hseq.elems[n]'(by simp [elems]; omega)) y (ss.drop n) := by
+  induction hseq generalizing n with
+  | refl => simp [elems]
+  | head hstep hseq ih =>
+    cases n <;> aesop
+
+lemma to_symmgen (hseq: ReductionSeq r x y ss):
+    ReductionSeq (SymmGen r) x y ss := by
+  induction hseq with
+  | refl => simp
+  | head hstep hseq ih =>
+    aesop (add unsafe 25% SymmGen.fw_step)
+
+lemma symmgen_reverse (hseq: ReductionSeq (SymmGen r) x y ss):
+    ReductionSeq (SymmGen r) y x (steps_reversed ss) := by
+  induction hseq with
+  | refl => simp!
+  | head hstep hseq ih =>
+    simp_all!
+    apply tail
+    exact ih
+    cases hstep
+    · apply SymmGen.bw_step
+      assumption
+    · apply SymmGen.fw_step
+      assumption
+
+lemma exists_iff_rel_conv: (r≡) x y ↔ ∃ss, ReductionSeq (SymmGen r) x y ss := by
+  constructor <;> intro h
+  · induction h with
+    | rel x y step => use [⟨x, y⟩]; aesop
+    | refl x => use []; aesop
+    | symm x y h ih =>
+      obtain ⟨ss, hss⟩ := ih
+      use (steps_reversed ss)
+      exact symmgen_reverse hss
+    | trans x y z hl hr ih1 ih2 =>
+      obtain ⟨ss₁, h₁⟩ := ih1
+      obtain ⟨ss₂, h₂⟩ := ih2
+      have := h₁.concat h₂
+      apply Exists.intro
+      use this
+  · obtain ⟨ss, hseq⟩ := h
+    induction hseq with
+    | refl => rfl
+    | head hstep hseq ih =>
+      rename_i x y z ss
+      cases hstep with
+      | fw_step hstep =>
+        apply EqvGen.trans x y z
+        apply EqvGen.rel x y hstep
+        exact ih
+      | bw_step hstep =>
+        apply EqvGen.trans x y z
+        apply EqvGen.symm
+        exact EqvGen.rel y x hstep
+        exact ih
+
+lemma no_peak_cases (hseq: ReductionSeq (SymmGen r) x y ss) (hnp: ¬hseq.has_peak):
+    ReductionSeq r x y ss ∨ ReductionSeq r y x (steps_reversed ss) ∨ ∃ss₁ ss₂, (
+      ss = ss₁ ++ ss₂ ∧ ss₁ ≠ [] ∧ ss₂ ≠ [] ∧ ∃z, (ReductionSeq r x z ss₁ ∧ ReductionSeq r y z (steps_reversed ss₂))
+    ) := by
+  induction hseq with
+  | refl =>
+    left; simp
+  | head hstep hseq ih =>
+    rename_i x y z ss'
+    have hnp': ¬hseq.has_peak := by
+      simp [has_peak] at hnp ⊢
+      intro x hx
+      have := hnp (x + 1) (by omega)
+      simpa
+    specialize ih hnp'
+    cases hseq
+    · cases hstep
+      · left; simp_all [ReductionSeq.head]
+      · right; left; simp_all! [ReductionSeq.head]
+    rcases ih with h | h | h <;> rcases hstep with hstep | hstep
+    · left; apply ReductionSeq.head hstep h
+    · refine (hnp ?_).elim
+      have := h.get_step
+      use 0
+      aesop
+    · right; right
+      rename_i y' ss' hsg hseq
+      use [⟨x, y⟩], ⟨y, y'⟩::ss'
+      simp
+      use y
+      aesop
+    · right; left
+      rw [steps_reversed]
+      aesop
+    · right; right
+      obtain ⟨ss₁, ss₂, heq, hne₁, hne₂, z', hseq₁, hseq₂⟩ := h
+      use ⟨x, y⟩::ss₁, ss₂
+      aesop
+    · exfalso
+      apply hnp
+      obtain ⟨ss₁, ss₂, heq, hne₁, hne₂, z', hseq₁, hseq₂⟩ := h
+      have := hseq₁.get_step
+      use 0
+      simp
+      use hstep
+      rename_i y' _ _ _
+      cases ss₁ with
+      | nil => contradiction
+      | cons head tail =>
+        have: ⟨y, y'⟩ = head := by aesop
+        aesop
+
+lemma reduct_of_not_peak (hseq: ReductionSeq (SymmGen r) x y ss) (hnp: ¬hseq.has_peak):
+    ∃d, r∗ x d ∧ r∗ y d := by
+  have := hseq.no_peak_cases hnp
+  rcases this with h | h | h
+  · use y, h.to_reflTrans
+  · use x, ReflTransGen.refl, h.to_reflTrans
+  · obtain ⟨ss₁, ss₂, heq, hne₁, hne₂, z, hseq₁, hseq₂⟩ := h
+    use z, hseq₁.to_reflTrans, hseq₂.to_reflTrans
+
 
 end ReductionSeq
 

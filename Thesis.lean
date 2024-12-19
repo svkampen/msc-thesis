@@ -6,7 +6,6 @@ import Thesis.Multiset
 import Thesis.Newman
 import Thesis.ReductionSeq
 import Thesis.BasicProperties
-import Thesis.SymmSeq
 import Thesis.InfReductionSeq
 import Thesis.DecreasingDiagrams
 import Thesis.Misc
