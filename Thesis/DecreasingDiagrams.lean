@@ -298,10 +298,7 @@ lemma dX_step_le {N f} {mr: reduction_seq C.ars.union_rel N f} (hcr: cofinal_red
     and_intros
     · dsimp [g']
     · simpa [g'] using hseq.right.left
-    · intro m hm
-      apply hseq.right.right
-      norm_cast at hm ⊢
-      linarith
+    · convert hseq.right.right.tail
 
   by_contra! hgt
   apply dX.min mr.elems (hcr (f' 1)) n' hgt

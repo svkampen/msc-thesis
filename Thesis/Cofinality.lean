@@ -29,14 +29,15 @@ variable (r: α → α → Prop)
 A set `s` is cofinal in r if every element `a: α` reduces to
 some b in the set.
 -/
-def cofinal (s: Set α) := ∀a, ∃b ∈ s, r∗ a b
+def cofinal (s: Set α) :=
+  ∀a, ∃b ∈ s, r∗ a b
 
 /--
 A reduction sequence is cofinal in r if the set of all elements in the sequence
 is cofinal in r.
 -/
-def cofinal_reduction {r: Rel α α} {N: ℕ∞} {f: ℕ → α} (hseq: reduction_seq r N f)
-  := cofinal r hseq.elems
+def cofinal_reduction {r: Rel α α} {N: ℕ∞} {f: ℕ → α} (hseq: reduction_seq r N f) :=
+  cofinal r hseq.elems
 
 /--
 An ARS has the cofinality property (CP) if for every a ∈ A, there exists a
@@ -183,8 +184,8 @@ lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_
     rcases x with ⟨x, hx⟩
     rcases y with ⟨y, hy⟩
     constructor
-    · simpa (config := { zetaDelta := true }) [S.star_restrict_union] using hx
-    · simpa (config := { zetaDelta := true }) [S.star_restrict_union] using hy
+    · simpa +zetaDelta [S.star_restrict_union] using hx
+    · simpa +zetaDelta [S.star_restrict_union] using hy
 
 
   -- we can form a sequence of common reducts of aₙ

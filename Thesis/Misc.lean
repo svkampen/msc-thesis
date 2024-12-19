@@ -5,10 +5,10 @@ import Mathlib.Data.Rel
 open Relation
 
 @[simp]
-def Rel.union: Rel α α → Rel α α → Rel α α :=
+def Rel.union: Rel α β → Rel α β → Rel α β :=
   fun r₁ r₂ x y ↦ (r₁ x y) ∨ (r₂ x y)
 
-instance Rel.instUnion: Union (Rel α α) where
+instance Rel.instUnion: Union (Rel α β) where
   union := Rel.union
 
 def Rel.union_comm (a b: Rel α α): (a ∪ b) = (b ∪ a) := by

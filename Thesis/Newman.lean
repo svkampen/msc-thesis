@@ -26,10 +26,11 @@ section newman_barendregt
 variable {α} (r: Rel α α)
 
 /-- An ambiguous element `a` has at least two distinct normal forms. -/
-def ambiguous (a: α) := ∃(b c: α), normal_form r b ∧ normal_form r c ∧ (b ≠ c) ∧ (r∗ a b ∧ r∗ a c)
+def ambiguous (a: α) :=
+  ∃(b c: α), r∗ a b ∧ r∗ a c ∧ normal_form r b ∧ normal_form r c ∧ b ≠ c
 
 /-- Uniqueness of normal forms + weak normalization implies confluence. -/
-def unr_wn_imp_confluence ⦃α⦄ ⦃r: Rel α α⦄ (hwn: weakly_normalizing r) (hu: unique_nf_prop_r r): confluent r := by
+lemma confluent_of_wn_unr ⦃α⦄ ⦃r: Rel α α⦄ (hwn: weakly_normalizing r) (hu: unique_nf_prop_r r): confluent r := by
   rintro a b c ⟨hab, hac⟩
 
   obtain ⟨d₁, hd₁⟩ := hwn b
@@ -46,56 +47,60 @@ def unr_wn_imp_confluence ⦃α⦄ ⦃r: Rel α α⦄ (hwn: weakly_normalizing r
   exact hd₂.right
 
 /--
+If an element has two distinct normal forms, neither one can be the element itself, so the
+reduction sequences a ->> d₁ and a ->> d₂ must be transitive instead of reflexive-transitive.
+-/
+lemma trans_step_of_two_normal_forms {r: Rel α α} {a d₁ d₂: α}
+    (hd₁: normal_form r d₁) (hd₂: normal_form r d₂)
+    (had₁: r∗ a d₁) (had₂: r∗ a d₂) (hne: d₁ ≠ d₂): r⁺ a d₁ ∧ r⁺ a d₂ := by
+  cases had₁.cases_head <;> cases had₂.cases_head
+  all_goals simp_all [TransGen.head'_iff]
+
+/--
 In the context of Newman's lemma, an ambiguous element `a` always has a one-step
 reduct which is also ambiguous (leading to an infinite sequence).
 -/
-def newman_ambiguous_step {r: Rel α α} (hwn: weakly_normalizing r) (hwc: weakly_confluent r) (a: α):
+lemma exists_ambiguous_reduct_of_ambiguous {r: Rel α α} (hwn: weakly_normalizing r) (hwc: weakly_confluent r) (a: α):
   ambiguous r a → ∃b, r a b ∧ ambiguous r b := by
     intro ha
-    obtain ⟨d₁, d₂, ⟨hnf₁, hnf₂, hne, hpath₁, hpath₂⟩⟩ := ha
+    obtain ⟨d₁, d₂, had₁, had₂, hnf₁, hnf₂, hne⟩ := ha
 
-    cases hpath₁.cases_head <;> cases hpath₂.cases_head
-    · cc
-    · have hnnf₁: ¬normal_form r d₁ := by
-        simp [normal_form]
-        rename_i h₁ h₂
-        obtain ⟨x, hx, -⟩ := h₂
-        rw [h₁] at hx
-        use x
-      contradiction
-    · have hnnf₂: ¬normal_form r d₂ := by
-        simp [normal_form]
-        rename_i h₁ h₂
-        obtain ⟨x, hx, -⟩ := h₁
-        rw [h₂] at hx
-        use x
-      contradiction
+    -- a ->> d₁ and a ->> d₂ cannot be reflexive
+    have ⟨had₁', had₂'⟩: r⁺ a d₁ ∧ r⁺ a d₂ := trans_step_of_two_normal_forms hnf₁ hnf₂ had₁ had₂ hne
 
-    rename_i hb hc
-    obtain ⟨b, hb⟩ := hb
-    obtain ⟨c, hc⟩ := hc
+    -- Therefore, both must have some initial step a -> b ->> d₁ and a -> c ->> d₂
+    -- and a -> b ∧ a -> c => ∃d, b ->> d <<- c.
+    obtain ⟨b, hab, hbd₁⟩ := TransGen.head'_iff.mp had₁'
+    obtain ⟨c, hac, hcd₂⟩ := TransGen.head'_iff.mp had₂'
     obtain ⟨d, hd⟩ := hwc (b := b) (c := c) (by tauto)
 
+    -- d has some normal form, which cannot be equal to both d₁ _and_ d₂
     obtain ⟨nfd, hnfd⟩ := hwn d
 
-    wlog h: (nfd ≠ d₁) generalizing b c d₁ d₂
+    -- without loss of generality, nfd is distinct from d₁.
+    wlog h: nfd ≠ d₁ generalizing b c d₁ d₂
     · have h': nfd ≠ d₂ := by cc
-      have := this d₂ d₁ hnf₂ hnf₁ (by cc) hpath₂ hpath₁ c hc b hb (by tauto) h'
-      assumption
+      apply this d₂ d₁ (b := c) (c := b)
+      all_goals tauto
 
-    use b, hb.left, nfd, d₁, hnfd.1, hnf₁, h, Trans.trans (hd.1) (hnfd.2), hb.2
+    -- but both d₁ and nfd are normal forms of b.
+    -- then b must be ambiguous.
+    have hb: ambiguous r b := by
+      use d₁, nfd
+      have hbnfd: r∗ b nfd := hd.1.trans hnfd.2
+      and_intros <;> tauto
 
+    use b, hab
 
-/-- Newman's lemma: strong normalization + local confluence implies confluence. -/
-def newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
+lemma not_sn_of_wc_not_un (hwc: weakly_confluent r) (hnu: ¬unique_nf_prop_r r):
+    ¬strongly_normalizing r := by
+  simp only [unique_nf_prop_r, not_forall] at hnu
+  obtain ⟨d₁, d₂, a, ⟨⟨hnf₁, hnf₂⟩, ⟨had₁, had₂⟩, hne⟩⟩ := hnu
+  intro hsn
   have hwn: weakly_normalizing r := wn_of_sn hsn
-  suffices hun: unique_nf_prop_r r from unr_wn_imp_confluence hwn hun
-  contrapose hsn with hun
-  simp only [unique_nf_prop_r, not_forall] at hun
+  revert hsn
 
-  obtain ⟨d₁, d₂, a, ⟨⟨hnf₁, hnf₂⟩, ⟨hpath₁, hpath₂⟩, hne⟩⟩ := hun
-
-  choose! f h₁ h₂ using (newman_ambiguous_step hwn hwc)
+  choose! f h₁ h₂ using (exists_ambiguous_reduct_of_ambiguous hwn hwc)
   have h₃: ∀N, ambiguous r (f^[N] a) := Function.Iterate.rec _ h₂ (by use d₁, d₂)
 
   simp [strongly_normalizing]
@@ -103,6 +108,14 @@ def newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r 
   intro n
   simp only [Function.iterate_succ', Function.comp]
   apply h₁ _ (h₃ n)
+
+
+/-- Newman's lemma: strong normalization + local confluence implies confluence. -/
+lemma newman (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
+  have hwn: weakly_normalizing r := wn_of_sn hsn
+  suffices hun: unique_nf_prop_r r from confluent_of_wn_unr hwn hun
+  contrapose hsn with hun
+  exact not_sn_of_wc_not_un r hwc hun
 
 end newman_barendregt
 
@@ -144,7 +157,7 @@ variable {r: Rel α α}
 lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
   have hwf: IsWellFounded α (r.inv)⁺ := wf_inv_trans_of_sn hsn
 
-  rintro a
+  intro a
   induction' a using hwf.induction with a wf_ih
   rintro b c ⟨hab, hac⟩
 

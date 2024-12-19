@@ -308,7 +308,7 @@ instance MultisetExt.strict_order [i: IsStrictOrder α r]: IsStrictOrder (Multis
 end strict_order
 
 
-/--
+/-
 `less_add` and `all_accessible` are adapted from the Isabelle theory Multiset.
 
 `all_accessible` especially is a wonderfully short proof of well-foundedness
@@ -321,54 +321,41 @@ The tree-based proofs found in many parts of the literature are much more
 intuitive, but this proof only uses notions that have already been formalized.
 -/
 
+/--
+If N <¹# M, and M consists of a ::ₘ M0, then either
+- some other element is deleted, so a appears in N
+- a is deleted and replaced by a set of reducts K
+-/
 lemma less_add (h: MultisetExt1 r N M) (hM: M = a ::ₘ M0):
     (∃M, MultisetExt1 r M M0 ∧ N = a ::ₘ M) ∨
     (∃K, (∀b ∈ K, r b a) ∧ N = M0 + K) := by
   rcases h with ⟨M, M', s, h⟩
-  have hM': (M = M0 ∧ s = a) ∨ (∃K, M = a ::ₘ K ∧ M0 = s ::ₘ K) := by
-    have := Multiset.cons_eq_cons.mp hM
-    tauto
-  by_cases has: (a = s)
-  · rw [has] at hM ⊢
-    right
-    use M'
-    simp at hM
-    simpa [hM, h]
-  · left
-    rcases hM' with (_ | ⟨K, hK⟩)
-    · simp_all
-    · use (M' + K)
-      constructor
-      · rw [hK.2, add_comm]
-        apply MultisetExt1.rel
-        exact h
-      · simp [hK]; ac_rfl
+  rcases Multiset.cons_eq_cons.mp hM with (⟨rfl, rfl⟩ | ⟨_, K, rfl, rfl⟩)
+  · aesop
+  · left;
+    use (K + M'), MultisetExt1.rel K M' s h, Multiset.cons_add a K M'
 
-theorem all_accessible (hwf: WellFounded r): ∀M, Acc (MultisetExt1 r) M := by
-  intro M
+theorem all_accessible (hwf: WellFounded r) (M: Multiset α): Acc (MultisetExt1 r) M := by
   induction M using Multiset.induction with
   | empty =>
     constructor
     intro y hy
     simpa using hy.nonempty
-  | cons a M hM =>
+  | cons a M ih =>
     induction a using hwf.induction generalizing M with
     | h a wf_ih =>
-      induction hM with
+      induction ih with
       | intro M0 h ih₂ =>
-        have acc_ih: ∀y, MultisetExt1 r y M0 → Acc (MultisetExt1 r) (a ::ₘ y) := by
-          intro y hy; apply ih₂ y hy
         constructor
         intro N hN
         rcases less_add hN (by rfl) with ⟨M, hM₁, rfl⟩ | ⟨K, hK₁, rfl⟩
-        · apply acc_ih M hM₁
-        · clear acc_ih hN
+        · exact ih₂ M hM₁
+        · clear hN
           induction K using Multiset.induction with
-          | empty => simp; exact Acc.intro M0 h
-          | cons a' K' ih =>
-            rw [add_comm, Multiset.cons_add, add_comm]
-            apply wf_ih a' (by simp [hK₁]) (M0 + K') (ih (by simp_all))
-
+          | empty => simpa using Acc.intro _ h
+          | cons c K ih =>
+            have := wf_ih c (hK₁ c (Multiset.mem_cons_self c K)) (M0 + K)
+            convert this ?_ using 1 <;> aesop
 
 
 instance MultisetExt.wf [IsWellFounded α r]: IsWellFounded (Multiset α) (MultisetExt r) where

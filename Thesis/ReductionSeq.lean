@@ -18,9 +18,6 @@ A generic reduction sequence, which is finite if `N ≠ ⊤` and infinite otherw
 abbrev reduction_seq (N: ℕ∞) (f: ℕ → α) :=
   ∀n: ℕ, n < N → r (f n) (f (n + 1))
 
-def reduction_seq_rtg (N: ℕ∞) (f: ℕ → α) :=
-  ∀(n : ℕ), (h: n < N) → r∗ (f n) (f (n + 1))
-
 @[simp]
 lemma reduction_seq_top_iff: reduction_seq r ⊤ f ↔ ∀n, r (f n) (f (n + 1)) := by
   simp [reduction_seq]
@@ -133,8 +130,42 @@ def reduction_seq.concat {r} {N₁: ℕ} {N₂: ℕ∞}
     · norm_cast at *
       omega
 
+def reduction_seq.tail (hseq: reduction_seq r N f):
+    reduction_seq r (N - 1) (fun n ↦ f (n + 1)) := by
+  cases N with
+  | top => aesop
+  | coe a =>
+    cases a <;>
+    · norm_cast
+      aesop
 
-
+def reduction_seq.flatten {N: ℕ} (hseq: reduction_seq r∗ N f):
+    ∃(N': ℕ) (f': ℕ → α) (hseq': reduction_seq r N' f'),
+      hseq.start = hseq'.start ∧ hseq.end = hseq'.end := by
+  induction N generalizing f with
+  | zero =>
+    use 0, f, refl r f
+    aesop
+  | succ n ih =>
+    obtain ⟨N₂, f₂, hseq₂, h⟩ := ih hseq.tail
+    simp at h ⊢
+    have := hseq 0 (by simp)
+    obtain ⟨N₁, f₁, hseq₁, h'⟩ := reduction_seq.from_reflTrans this
+    have := hseq₁.concat hseq₂ (by aesop)
+    norm_cast at this
+    use N₁ + N₂, fun_aux N₁ f₁ f₂
+    rw [fun_aux]
+    and_intros
+    · aesop
+    · intro n hn
+      apply this
+      norm_cast
+    · simp [fun_aux]
+      split_ifs with h
+      · subst h
+        simp at h' ⊢
+        cc
+      · tauto
 
 end functional_def
 

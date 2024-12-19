@@ -253,11 +253,13 @@ and it is weakly normalizing.
 def semi_complete := unique_normal_form_property r ∧ weakly_normalizing r
 
 /--
-A relation is _inductive_ if every element in a reduction sequence also reduces
-to some `a`. Since inductive is a Lean keyword, we use the name `rel_inductive`.
+A relation is _inductive_ if, for every reduction sequence, there exists
+an element `a` that is a reduct of every element in the sequence.
+
+Since inductive is a Lean keyword, we use the name `rel_inductive`.
 -/
 def rel_inductive :=
-  ∀{N f}, reduction_seq r N f → ∃a, ∀n < (N + 1), r∗ (f n.toNat) a
+  ∀{N f} (hseq: reduction_seq r N f), ∃a, ∀b ∈ hseq.elems, r∗ b a
 
 /--
 A relation is _increasing_ if there exists a mapping `f: α → ℕ` which increases
@@ -340,25 +342,22 @@ lemma rel_inductive_of_semi_complete: semi_complete r → rel_inductive r := by
   have ⟨a, ha⟩ := wn (f 0)
 
   use a
-  intro n hn
-  cases n with
-  | top => simp at hn
-  | coe n =>
-    simp
-    obtain ⟨b, hb⟩ := wn (f n)
-    suffices ∃b, r∗ (f n) b ∧ a = b by
-      · cases this; simp_all
+  intro b hb
+  obtain ⟨n, hn⟩ := hb
+  obtain ⟨nf, hnf⟩ := wn (f n)
+  suffices ∃nf, r∗ b nf ∧ a = nf by
+    · cases this; simp_all
 
-    use b, hb.right
-    apply un a b ⟨ha.left, hb.left⟩
+  use nf, hn.right ▸ hnf.right
+  apply un a nf ⟨ha.left, hnf.left⟩
 
-    have haf₀: (r≡) a (f 0) := EqvGen.symm _ _ (ha.right.to_equiv)
-    have hf₀fₙ: (r≡) (f 0) (f n) :=
-      ReflTransGen.to_equiv <| hf.reflTrans 0 n hn <| Nat.zero_le n
+  have haf₀: (r≡) a (f 0) := EqvGen.symm _ _ (ha.right.to_equiv)
+  have hf₀fₙ: (r≡) (f 0) (f n) :=
+    ReflTransGen.to_equiv <| hf.reflTrans 0 n hn.left <| Nat.zero_le n
 
-    have hfₙb: (r≡) (f n) b := hb.right.to_equiv
-    apply EqvGen.trans _ _ _ haf₀
-    apply EqvGen.trans _ _ _ hf₀fₙ hfₙb
+  have hfₙnf: (r≡) (f n) nf := hnf.right.to_equiv
+  apply EqvGen.trans _ _ _ haf₀
+  apply EqvGen.trans _ _ _ hf₀fₙ hfₙnf
 
 
 /-- Any confluent relation `r` has the normal form property. -/
@@ -413,14 +412,13 @@ lemma strongly_normalizing_of_inductive_of_increasing:
   intro hInd hInc
   by_contra! h
 
-
   obtain ⟨seq, hseq⟩ := h
   have hseq': reduction_seq r ⊤ seq := by simpa using hseq
   obtain ⟨f, hf⟩ := increasing_trans_of_increasing hInc
   obtain ⟨a, ha⟩ := hInd hseq'
   simp at ha hseq
 
-  have ha': ∀n, r∗ (seq n) a := fun n ↦ ha n (by simp)
+  have ha': ∀n, r∗ (seq n) a := fun n ↦ ha n
 
   have: ∀k, 1 ≤ f (seq (k + 1)) - f (seq k) := by
     intro k
