@@ -75,7 +75,8 @@ lemma reduction_seq.trans {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) 
     exact lt_of_add_lt_add_right hm
 
 
-lemma reduction_seq.reflTrans {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) (hm: m < N + 1) (hn: n ≤ m): r∗ (f n) (f m) := by
+lemma reduction_seq.reflTrans {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) (hm: m < N + 1) (hn: n ≤ m):
+    r∗ (f n) (f m) := by
   rcases (Nat.eq_or_lt_of_le hn) with (rfl | hn)
   · rfl
   · apply TransGen.to_reflTransGen
@@ -175,9 +176,41 @@ section rs_def
 
 variable (r: Rel α α)
 
-structure RSStep (α: Type*) where
-  start: α
-  stop: α
+def steps_reversed: List (α × α) → List (α × α)
+| [] => []
+| (x::xs) => steps_reversed xs ++ [(x.2, x.1)]
+
+lemma steps_reversed_append:
+      steps_reversed (xs ++ ys) = steps_reversed ys ++ steps_reversed xs
+    := by
+  induction xs with
+  | nil => simp!
+  | cons head tail ih =>
+    simp! [ih]
+
+lemma steps_reversed_mem (hs: s ∈ ss): (s.2, s.1) ∈ (steps_reversed ss) := by
+  induction ss with
+  | nil => contradiction
+  | cons head tail ih =>
+    simp at hs
+    rcases hs with (hs | hs)
+    · simp! [hs]
+    · simp only [steps_reversed]
+      aesop
+
+lemma steps_reversed_add: steps_reversed (ss ++ [s]) = (s.2, s.1)::(steps_reversed ss) := by
+  induction ss generalizing s with
+  | nil => rfl
+  | cons head tail ih =>
+    simp! [ih]
+
+@[simp]
+lemma steps_reversed_reversed: steps_reversed (steps_reversed ss) = ss := by
+  induction ss with
+  | nil => rfl
+  | cons head tail ih =>
+    simp! [steps_reversed_add]
+    exact ih
 
 /--
 `ReductionSeq r x y ss` represents a reduction sequence, taking
@@ -187,9 +220,9 @@ An empty reduction sequence is represented by `ReductionSeq.refl`, allowing a
 reduction from `x` to `x` in 0 steps. Using `ReductionSeq.head`, a single step
 `r a b` can be prepended to an existing reduction sequence.
 -/
-inductive ReductionSeq: α → α → List (RSStep α) → Prop
+inductive ReductionSeq: α → α → List (α × α) → Prop
   | refl {x} : ReductionSeq x x []
-  | head {x y z ss} : r x y → ReductionSeq y z ss → ReductionSeq x z (⟨x, y⟩::ss)
+  | head {x y z ss} : r x y → ReductionSeq y z ss → ReductionSeq x z ((x, y)::ss)
 
 end rs_def
 
@@ -200,9 +233,9 @@ variable {r: Rel α α}
 
 namespace ReductionSeq
 
-def elems (_: ReductionSeq r x y ss) := x :: (ss.map RSStep.stop)
+def elems (_: ReductionSeq r x y ss) := x :: (ss.map Prod.snd)
 
-def elems' (_: ReductionSeq r x y ss) := ss.map RSStep.start ++ [y]
+def elems' (_: ReductionSeq r x y ss) := ss.map Prod.fst ++ [y]
 
 lemma elems_eq_elems' (hseq: ReductionSeq r x y ss): hseq.elems = hseq.elems' := by
   induction hseq with
@@ -288,8 +321,8 @@ lemma to_reduction_seq (hseq: ReductionSeq r x y ss):
       · use 0; simp
       · use 1; simp [hstart]
       · simp [elems] at hmem
-        intro a ha
-        obtain ⟨n, hn⟩ := hmem.2 a ha
+        intro a b ha
+        obtain ⟨n, hn⟩ := hmem.2 a b ha
         use (n + 1)
         simpa
     · simp
@@ -351,8 +384,8 @@ lemma flatten (hseq: ReductionSeq r∗ x y ss):
       simp only [elems, List.mem_cons] at this
       right; assumption
 
-lemma get_step (hseq: ReductionSeq r x y ss) (s: RSStep α) (hs: s ∈ ss):
-    r s.start s.stop := by
+lemma get_step (hseq: ReductionSeq r x y ss) (s: α × α) (hs: s ∈ ss):
+    r s.1 s.2 := by
   induction hseq with
   | refl => contradiction
   | @head x y z ss step seq ih => aesop
@@ -366,7 +399,7 @@ lemma empty_iff: ReductionSeq r x y [] ↔ x = y := by
   · rintro rfl
     exact refl
 
-lemma last (hseq: ReductionSeq r x y (ss' ++ [b])): b.stop = y := by
+lemma last (hseq: ReductionSeq r x y (ss' ++ [b])): b.2 = y := by
   generalize hss: ss' ++ [b] = ss
   rw [hss] at hseq
   induction hseq generalizing ss' b with
@@ -378,46 +411,11 @@ lemma last (hseq: ReductionSeq r x y (ss' ++ [b])): b.stop = y := by
     · aesop
 
 def has_peak (hseq: ReductionSeq (SymmGen r) x y ss) :=
-  ∃(n: ℕ) (h: n < ss.length - 1), r ss[n].stop ss[n].start ∧ r ss[n + 1].start ss[n + 1].stop
+  ∃(n: ℕ) (h: n < ss.length - 1), r ss[n].2 ss[n].1 ∧ r ss[n + 1].1 ss[n + 1].2
 
-def steps_reversed: List (RSStep α) → List (RSStep α)
-| [] => []
-| (x::xs) => steps_reversed xs ++ [{ start := x.stop, stop := x.start }]
-
-lemma steps_reversed_append:
-      steps_reversed (xs ++ ys) = steps_reversed ys ++ steps_reversed xs
-    := by
-  induction xs with
-  | nil => simp!
-  | cons head tail ih =>
-    simp! [ih]
-
-lemma steps_reversed_mem (hs: s ∈ ss): ⟨s.stop, s.start⟩ ∈ (steps_reversed ss) := by
-  induction ss with
-  | nil => contradiction
-  | cons head tail ih =>
-    simp at hs
-    rcases hs with (hs | hs)
-    · simp! [hs]
-    · simp only [steps_reversed]
-      aesop
-
-lemma steps_reversed_add: steps_reversed (ss ++ [s]) = ⟨s.stop, s.start⟩::(steps_reversed ss) := by
-  induction ss generalizing s with
-  | nil => rfl
-  | cons head tail ih =>
-    simp! [ih]
-
-@[simp]
-lemma steps_reversed_reversed: steps_reversed (steps_reversed ss) = ss := by
-  induction ss with
-  | nil => rfl
-  | cons head tail ih =>
-    simp! [steps_reversed_add]
-    exact ih
 
 lemma step_start_stop (hseq: ReductionSeq r x y ss) (n: ℕ) (hn: n < ss.length - 1):
-    ss[n].stop = ss[n + 1].start := by
+    ss[n].2 = ss[n + 1].1 := by
   induction hseq generalizing n with
   | refl => contradiction
   | head hstep hseq ih =>

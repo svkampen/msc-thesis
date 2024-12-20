@@ -212,8 +212,8 @@ private lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGe
   of WCR is empty (b -> b in 0 steps). We simply argue that removing the two steps
   b <- a and a -> b yields a smaller multiset.
   -/
-  by_cases h: (ss[n].start = ss[n + 1].stop)
-  · have: (ss.map RSStep.start ++ [y])[n]'(by simp; omega) = (ss.map RSStep.start)[n]'(by simp; omega) :=
+  by_cases h: (ss[n].1 = ss[n + 1].2)
+  · have: (ss.map Prod.fst ++ [y])[n]'(by simp; omega) = (ss.map Prod.fst)[n]'(by simp; omega) :=
       List.getElem_append_left (by simp; omega)
 
     simp_rw [hseq.elems_eq_elems', ReductionSeq.elems', this, List.getElem_map, h] at hseq₁
@@ -225,7 +225,7 @@ private lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGe
     have heq_ss: ss = ss.take n ++ (ss.drop n).take 2 ++ ss.drop (n + 2) := by
       simp [List.take_append_drop]
 
-    apply MultisetExt.erase_multiple (Multiset.ofList $ ((ss.drop n).take 2).map RSStep.stop)
+    apply MultisetExt.erase_multiple (Multiset.ofList $ ((ss.drop n).take 2).map Prod.snd)
     simp [ReductionSeq.elems]
     nth_rw 2 [heq_ss]
     simp only [ss', List.map_append, List.map_take, List.map_drop, List.append_assoc]
@@ -248,12 +248,12 @@ private lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGe
   obtain hbd' := hbd.to_symmgen
   obtain hcd' := hcd.to_symmgen.symmgen_reverse
 
-  let ss₂ := (ReductionSeq.steps_reversed ss₂')
+  let ss₂ := steps_reversed ss₂'
 
   have hseq_mid := hbd'.concat hcd'
 
   simp [ReductionSeq.elems_eq_elems', ReductionSeq.elems'] at hseq₁
-  have: n < ((List.map RSStep.start ss)).length := by
+  have: n < ((List.map Prod.fst ss)).length := by
     simp; omega
   simp [List.getElem_append_left this] at hseq₁
   simp [ReductionSeq.elems] at hseq₂
@@ -268,7 +268,7 @@ private lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGe
   into a form expected by `MultisetExt1.rel`..
   -/
   let M := hseq.elems.take (n + 1) ++ hseq.elems.drop (n + 2)
-  let s := ss[n].stop
+  let s := ss[n].2
 
   have hss₁₂: (ss₁ ++ ss₂) ≠ [] := by
     intro h
@@ -290,28 +290,28 @@ private lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGe
 
   rw [this]
 
-  have: b.stop = ss[n+1].stop := by
+  have: b.2 = ss[n+1].2 := by
     rw [List.concat_eq_append] at hLb
     rw [hLb] at hseq_mid
     exact hseq_mid.last
 
-  have h: ss[n+1].stop = (((⟨x,x⟩::ss).map (RSStep.stop))[n+2]'(by simp; omega)) := by
+  have h: ss[n+1].2 = (((⟨x,x⟩::ss).map (Prod.snd))[n+2]'(by simp; omega)) := by
     simp
 
-  have: List.drop (n + 2) hseq.elems = (b.stop) :: List.drop (n + 3) hseq.elems := by
+  have: List.drop (n + 2) hseq.elems = (b.2) :: List.drop (n + 3) hseq.elems := by
     rw [this, h]
     simp [ReductionSeq.elems]
-    have: n + 1 < (List.map RSStep.stop ss).length := by
+    have: n + 1 < (List.map Prod.snd ss).length := by
       simp
       omega
     rw [List.drop_eq_getElem_cons]
     · simp [List.getElem_map (h := this)]
     · exact this
 
-  have h: hseq'.elems = List.take (n + 1) hseq.elems ++ (ss₁ ++ ss₂).map (·.stop) ++ List.drop (n + 3) hseq.elems := by
+  have h: hseq'.elems = List.take (n + 1) hseq.elems ++ (ss₁ ++ ss₂).map (·.snd) ++ List.drop (n + 3) hseq.elems := by
     simp [ReductionSeq.elems]
 
-  have: Multiset.ofList (hseq'.elems) = Multiset.ofList (hseq.elems.take (n + 1) ++ hseq.elems.drop (n + 2)) + Multiset.ofList (L.map (·.stop)) := by
+  have: Multiset.ofList (hseq'.elems) = Multiset.ofList (hseq.elems.take (n + 1) ++ hseq.elems.drop (n + 2)) + Multiset.ofList (L.map (·.snd)) := by
     nth_rw 1 [this, h, hLb]
     simp [List.perm_append_left_iff]
     rw [List.perm_comm]
@@ -326,28 +326,28 @@ private lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGe
   /- All that's left now is proving that every element in L is a reduct of s. -/
   simp [s]
 
-  intro s hs
+  intro y x hs
 
   simp_rw [<-hseq.step_start_stop n (by omega)] at hab hac
   simp_rw [TransGen.head'_iff]
 
-  obtain (hmem | hmem): s ∈ ss₁ ∨ s ∈ ss₂ := by
+  obtain (hmem | hmem): (x, y) ∈ ss₁ ∨ (x, y) ∈ ss₂ := by
     simp [List.mem_append.mp, hLb, hs]
 
-  · use ss[n].start, hab
+  · use ss[n].1, hab
     rw [List.mem_iff_getElem] at hmem
-    obtain ⟨k, hk, rfl⟩ := hmem
+    obtain ⟨k, hk, heq⟩ := hmem
+    obtain ⟨rfl⟩: y = ss₁[k].2 := by simp [heq]
     have := hbd.take (k + 1) (by omega)
     simpa [ReductionSeq.elems] using this.to_reflTrans
-  · use ss[n + 1].stop, hac
-    have := ReductionSeq.steps_reversed_mem hmem
+  · use ss[n + 1].2, hac
+    have := steps_reversed_mem hmem
     simp [ss₂, List.mem_iff_getElem] at this
     obtain ⟨k, hk, heq⟩ := this
-    have: s.stop = ss₂'[k].start := by rw [heq]
-    rw [this]
+    obtain ⟨rfl⟩: y = ss₂'[k].1 := by rw [heq]
     have := hcd.take k (by omega)
     simp_rw [ReductionSeq.elems_eq_elems', ReductionSeq.elems'] at this
-    have hlt: k < (ss₂'.map RSStep.start).length := by simp [hk]
+    have hlt: k < (ss₂'.map Prod.fst).length := by simp [hk]
     simp_rw [List.getElem_append_left hlt] at this
     simpa using this.to_reflTrans
 
