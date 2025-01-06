@@ -5,4 +5,4 @@
   {"message":
    "stdout:\nWARNING: Failed to calculate equational lemmata for CauSeq.Completion.instReprCauchy: (kernel) invalid declaration, it uses unsafe declaration 'CauSeq.Completion.instReprCauchy'",
    "level": "info"}],
- "depHash": "52259163770596062"}
+ "depHash": "14531316046669230909"}
