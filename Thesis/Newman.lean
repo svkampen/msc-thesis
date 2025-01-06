@@ -384,14 +384,17 @@ lemma newman₃ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
   obtain ⟨M, hM₁, hM₂⟩ := hwf'.wf.has_min hset hne
   obtain ⟨ss', hseq', hM⟩ := hM₁
 
-  /- Let's say all landscapes between a and b contain a peak. -/
-  by_contra! h
+  /- The landscape corresponding to this minimum has no peak. -/
+  use ss', hseq'
+
+  /- Assume it does have a peak. -/
+  intro hpeak
 
   /-
   Then our minimum is not a minimum, because any landscape with a peak
   can use newman_step' to produce a smaller landscape.
   -/
-  obtain ⟨ss'₂, hseq'₂, hless⟩ := newman_step' hwc hseq' (h ss' hseq')
+  obtain ⟨ss'₂, hseq'₂, hless⟩ := newman_step' hwc hseq' hpeak
   rw [<-hM] at hless
   apply hM₂ hseq'₂.elems _ hless
   use ss'₂, hseq'₂

@@ -48,7 +48,7 @@ def cofinality_property :=
     cofinal_reduction hseq ∧ hseq.start = a
 
 /--
-An ARS has the component-wise cofinality property (CP_conv) if for every a ∈ A,
+An ARS has the component-wise cofinality property (CP≡) if for every a ∈ A,
 there exists a reduction a = b₀ → b₁ → ⋯ that is cofinal in A|{b | a ≡ b}.
 -/
 def cofinality_property_conv :=
@@ -56,7 +56,7 @@ def cofinality_property_conv :=
     cofinal_reduction hseq ∧ hseq.start = a
 
 /-- Any ARS with the cofinality property is confluent. -/
-lemma cp_imp_cr {A: ARS α I}: cofinality_property A → confluent A.union_rel := by
+lemma cr_of_cp {A: ARS α I}: cofinality_property A → confluent A.union_rel := by
   intro hcp
   rintro a b c ⟨hab, hac⟩
 
@@ -95,7 +95,7 @@ lemma cp_iff_cp_conv : cofinality_property A ↔ cofinality_property_conv A := b
   · show cofinality_property A → cofinality_property_conv A
     intro hcp a
     have hc: conv_confluent A.union_rel :=
-      conv_confluent_iff_confluent.mpr (cp_imp_cr hcp)
+      conv_confluent_iff_confluent.mpr (cr_of_cp hcp)
 
     obtain ⟨N, f, hseq, hcr, hstart⟩ := hcp a
 
@@ -162,7 +162,8 @@ private def cnt_cr_imp_cp_aux {A: ARS α I} {S : SubARS A} (f : ℕ → S.Subtyp
 --set_option trace.Meta.Tactic.simp.rewrite true
 
 /-- A countable, confluent ARS has the cofinality property. -/
-lemma cnt_cr_imp_cp [cnt: Countable α] (cr: confluent A.union_rel): cofinality_property A := by
+lemma cp_of_countable_cr [cnt: Countable α] (cr: confluent A.union_rel):
+    cofinality_property A := by
   intro a
   set S := A.reduction_graph a with S_def
   set β := {b // S.p b}
@@ -249,37 +250,38 @@ section cyclic_finite
 variable {r: Rel α α} {f: ℕ → α} {N: ℕ} (hseq: reduction_seq r N f)
 
 /--
-The acyclic version of a finite cofinal reduction sequence is simply the
-last element of that reduction sequence.
--/
-def acyclic_of_finite :=
-  reduction_seq.refl r (fun _ ↦ hseq.end)
-
-lemma acyclic_of_finite.is_cofinal (hcf: cofinal_reduction hseq):
-    cofinal_reduction <| acyclic_of_finite hseq := by
-  intro a
-  obtain ⟨b, ⟨n, hmem, heq⟩, hb⟩ := hcf a
-  simp [acyclic_of_finite]
-  norm_cast at hmem
-  simp at hmem
-  by_cases heqₙ: n = N
-  · subst heqₙ heq
-    assumption
-  · trans b
-    · exact hb
-    subst heq
-    apply_mod_cast hseq.reflTrans
-    all_goals omega
-
-/--
 A reduction sequence is acyclic if two elements
 are equal only if their indices are the same.
 -/
 def reduction_seq.acyclic (_: reduction_seq r N' f) :=
   ∀⦃n m: ℕ⦄, n < N' → m < N' → f n = f m → n = m
 
-lemma acyclic_of_finite.is_acyclic: (acyclic_of_finite hseq).acyclic := by
-  simp [acyclic_of_finite, reduction_seq.acyclic]
+/--
+The acyclic version of a finite cofinal reduction sequence is simply the
+last element of that reduction sequence.
+-/
+
+lemma acyclic_of_finite {N: ℕ} (hseq: reduction_seq r N f) (hcf: cofinal_reduction hseq):
+    ∃N' f', ∃(hseq': reduction_seq r N' f'), cofinal_reduction hseq' ∧ hseq'.acyclic := by
+  apply Exists.intro
+  apply Exists.intro
+  use reduction_seq.refl r (fun _ ↦ hseq.end)
+
+  constructor
+  · intro a
+    obtain ⟨b, ⟨n, hmem, heq⟩, hb⟩ := hcf a
+    simp [acyclic_of_finite]
+    norm_cast at hmem
+    simp at hmem
+    by_cases heqₙ: n = N
+    · subst heqₙ heq
+      assumption
+    · trans b
+      · exact hb
+      subst heq
+      apply_mod_cast hseq.reflTrans
+      all_goals omega
+  · simp [reduction_seq.acyclic]
 
 end cyclic_finite
 
@@ -330,37 +332,38 @@ private lemma aux: appears_finitely f n → appears_finitely' f n := by
 lemma no_appears_infinitely_imp_appears_finitely: (¬∃n, appears_infinitely f n) ↔ ∀n, appears_finitely f n := by
   simp [appears_infinitely, appears_finitely]
 
-noncomputable def acyclic_of_appears_infinitely
-    (hinf: ∃n, appears_infinitely f n) :=
-  reduction_seq.refl r (fun _ ↦ f <| hinf.choose)
-
 include hcf in
-lemma acyclic_of_appears_infinitely.reduction_seq (hinf: ∃n, appears_infinitely f n):
-    cofinal_reduction <| acyclic_of_appears_infinitely r f hinf := by
-  intro a
-  obtain ⟨b, ⟨n, -, heq⟩, hab⟩ := hcf a
-  obtain hm := hinf.choose_spec
-  set m := hinf.choose with m_def
+lemma acyclic_of_appears_infinitely (hinf: ∃n, appears_infinitely f n):
+    ∃N' f', ∃(hseq': reduction_seq r N' f'), cofinal_reduction hseq' ∧ hseq'.acyclic := by
+  apply Exists.intro
+  apply Exists.intro
+  use reduction_seq.refl r (fun _ ↦ f (hinf.choose))
+  constructor
+  · intro a
+    obtain ⟨b, ⟨n, -, heq⟩, hab⟩ := hcf a
+    obtain hm := hinf.choose_spec
+    set m := hinf.choose with m_def
 
-  have := hseq.reflTrans
-  simp [acyclic_of_appears_infinitely]
-  trans b
-  use hab
-  rw [<-heq]
+    have := hseq.reflTrans
+    simp [acyclic_of_appears_infinitely]
+    trans b
+    use hab
+    rw [<-heq]
 
-  obtain ⟨n₂, hn₂⟩ := hm n
-  have := hseq.reflTrans n n₂
-  simp at this
-  rw [<-m_def, hn₂.2]
-  apply this
-  omega
+    obtain ⟨n₂, hn₂⟩ := hm n
+    have := hseq.reflTrans n n₂
+    simp at this
+    rw [hn₂.2]
+    apply this
+    omega
+  · simp [reduction_seq.acyclic]
 
 section all_appear_finitely
 
 variable (hf: ∀n, appears_finitely' f n)
 
 noncomputable def f_idxs (n: ℕ): ℕ :=
-  (hf (if n = 0 then n else (f_idxs (n - 1)) + 1)).choose
+  Classical.choose (hf (if n = 0 then n else (f_idxs (n - 1)) + 1))
 
 noncomputable def f' (n: ℕ) :=
   f <| f_idxs f hf n
@@ -375,7 +378,7 @@ lemma hseq': reduction_seq r ⊤ (f' f hf) := by
 
   simp only [<-heq, ENat.coe_lt_top, hseq]
 
-lemma arg_le_hf (n: ℕ): n ≤ (hf n).choose := by
+lemma arg_le_hf (n: ℕ): n ≤ Classical.choose (hf n):= by
   obtain ⟨-, hneq⟩ := (hf n).choose_spec
   by_contra! h
   apply hneq n h rfl
@@ -441,23 +444,14 @@ lemma cofinal_reduction_acyclic (hseq: reduction_seq r N f) (hcf: cofinal_reduct
   -- If the cofinal reduction sequence is finite, the last element on its own
   -- forms a cofinal reduction sequence which is acyclic.
   case coe N =>
-    apply Exists.intro
-    apply Exists.intro
-    use acyclic_of_finite hseq,
-        acyclic_of_finite.is_cofinal hseq hcf,
-        acyclic_of_finite.is_acyclic hseq
+    exact acyclic_of_finite hseq hcf
 
   -- If the cofinal reduction sequence is infinite...
   case top =>
     by_cases hinf: ∃n, appears_infinitely f n
     -- ...and at least one element appears infinitely often, that element on
     -- its own forms a cofinal reduction sequence which is acyclic.
-    · apply Exists.intro
-      apply Exists.intro
-      use (acyclic_of_appears_infinitely r f hinf)
-      constructor
-      exact acyclic_of_appears_infinitely.reduction_seq r f hseq hcf hinf
-      simp [reduction_seq.acyclic]
+    · exact acyclic_of_appears_infinitely r f hseq hcf hinf
     -- ...and all elements appear only finitely often, we are in the complicated
     -- case, where we have to construct a new infinite reduction sequence which
     -- skips all of the cycles.

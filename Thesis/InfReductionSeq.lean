@@ -23,7 +23,7 @@ suggestions :^).
 
 https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/.E2.9C.94.20Infinite.20reduction.20sequences.20in.20abstract.20rewriting/near/453168755
 -/
-noncomputable section flatten_trans_seq
+section flatten_trans_seq
 
 
 /--
@@ -46,7 +46,7 @@ private lemma trans_chain: r⁺ a b → ∃l, l.getLast? = some b ∧ List.Chain
 /--
 `trans_chain'` chooses a list that has the properties given by `trans_chain`.
 -/
-private def trans_chain': r⁺ a b → List α :=
+private noncomputable def trans_chain': r⁺ a b → List α :=
   fun h ↦ choose (trans_chain h)
 
 /--
@@ -56,31 +56,23 @@ private lemma trans_chain'.spec (h: r⁺ a b):
     (trans_chain' h).getLast? = b ∧ List.Chain r a (trans_chain' h) := by
   simp [choose_spec (trans_chain h), trans_chain']
 
-/-- `trans_chain' h` has length at least 1. -/
-private lemma trans_chain'.nonempty: 1 ≤ (trans_chain' h).length := by
-  by_contra! h'
-  rw [Nat.lt_one_iff, List.length_eq_zero] at h'
-  apply ((trans_chain' h).getLast?_isSome).mp
-  rwa [(spec h).1, Option.isSome_some]
+/-- `trans_chain' h` is nonempty. -/
+private lemma trans_chain'.nonempty: (trans_chain' h) ≠ [] := by
+  have := (spec h).1
+  intro heq
+  simp_all only [List.getLast?_nil, reduceCtorEq]
 
-/-- `trans_chain' h` is not the empty list. -/
-private lemma trans_chain'.nonempty': trans_chain' h ≠ [] :=
-  List.length_pos.mp <| Nat.one_add_le_iff.mpr nonempty
 
 /--
 An infinite r⁺-reduction sequence can be turned into an infinite
 sequence of lists of reducts, as given by `trans_chain'`.
 -/
-private def inf_trans_lists (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ f): ℕ → List α
-| n => trans_chain' (hf.inf_step n)
-
-/-- Each of the lists in `inf_trans_lists f hf` has length at least 1. -/
-private lemma inf_trans_lists.nonempty: ∀n, 1 ≤ (inf_trans_lists f hf n).length
-| _ => by simp [inf_trans_lists, trans_chain'.nonempty]
+private noncomputable def inf_trans_lists (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ f): ℕ → List α
+| n => trans_chain' (hf n (by simp))
 
 /-- Each of the lists in `inf_trans_lists f hf` is nonempty. -/
-private lemma inf_trans_lists.nonempty': ∀n, (inf_trans_lists f hf n) ≠ []
-| n => List.length_pos.mp <| Nat.one_add_le_iff.mpr <| nonempty n
+private lemma inf_trans_lists.nonempty: ∀n, (inf_trans_lists f hf n) ≠ []
+| _ => by simp [inf_trans_lists, trans_chain'.nonempty]
 
 
 /-
@@ -91,21 +83,22 @@ the elements from each of the lists of reducts.
 -/
 section aux
 
-variable (l_seq: ℕ → List α) (hne: ∀n, 1 ≤ (l_seq n).length)
+variable (l_seq: ℕ → List α) (hne: ∀n, (l_seq n) ≠ [])
 
 /--
-Starting at list no. `start`, get the `add`th element, going to the next
-list if `add ≥ (l_seq start).length`.
+Starting at list no. `list_idx`, get the `elem_idx`th element, going to the next
+list if `elem_idx ≥ (l_seq list_idx).length`.
 
 This definition is largely due to Edward van de Meent on the Lean Zulip.
 -/
-private def aux (start: ℕ) (add: ℕ) : α :=
-  if h: add < (l_seq start).length then
-    (l_seq start).get ⟨add,h⟩
+private def aux (list_idx: ℕ) (elem_idx: ℕ) : α :=
+  if h: elem_idx < (l_seq list_idx).length then
+    (l_seq list_idx)[elem_idx]
   else
-    have : add - (l_seq start).length < add := by
-      exact Nat.sub_lt_self (hne start) (Nat.le_of_not_lt h)
-    aux (start + 1) (add - (l_seq start).length)
+    have: elem_idx - (l_seq list_idx).length < elem_idx := by
+      have := List.length_pos.mpr <| hne list_idx
+      omega
+    aux (list_idx + 1) (elem_idx - (l_seq list_idx).length)
 
 /--
 If `x := aux l_seq hne (m + 1) k`, i.e. the `k`th element starting from list
@@ -114,7 +107,8 @@ adding some `n`, which is the length of list `m`.
 -/
 private lemma aux_skip (m k: ℕ): ∃n, aux l_seq hne m (k + n) = aux l_seq hne (m + 1) k := by
   use (l_seq m).length
-  conv => left; unfold aux; simp
+  rw [aux]
+  simp
 
 /--
 An extension of `aux_skip`; we can get the `k`th element starting from list `m + i`
@@ -138,19 +132,17 @@ private lemma aux_elem' (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ f) (n) (hn: 
     let ls := inf_trans_lists f hf
     f n = aux ls inf_trans_lists.nonempty (n - 1) ((ls (n - 1)).length - 1) := by
   simp +singlePass [aux]
-  split
-  next h =>
-    · have ⟨h₁, h₂⟩ := trans_chain'.spec (hf.inf_step (n - 1))
-      have heq₂ := List.getLast?_eq_getLast (trans_chain' (hf.inf_step (n - 1))) trans_chain'.nonempty'
-      simp [List.getLast_eq_getElem] at heq₂
-      rw [heq₂] at h₁
-      simp_all [inf_trans_lists]
-      congr
-      omega
-  next h =>
-    · exfalso
-      have h': 1 ≤ (inf_trans_lists f hf _).length := inf_trans_lists.nonempty (n - 1)
-      omega
+  rw [dif_pos]
+  · have ⟨h₁, h₂⟩ := trans_chain'.spec (hf.inf_step (n - 1))
+    have heq₂ := List.getLast?_eq_getLast (trans_chain' (hf.inf_step (n - 1))) trans_chain'.nonempty
+    simp [List.getLast_eq_getElem] at heq₂
+    rw [heq₂] at h₁
+    simp_all [inf_trans_lists]
+    congr
+    omega
+  have h': 0 < (inf_trans_lists f hf (n - 1)).length :=
+    List.length_pos.mpr <| inf_trans_lists.nonempty (n - 1)
+  omega
 
 /--
 By `aux_skip_i`, `aux_elem'` can be modified to prove each element of `f` is
@@ -169,7 +161,7 @@ private lemma aux_elem (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ f) (n: ℕ) (
 /-
 If the first list forms an r-chain, and each subsequent list forms an r-chain
 with the last element of the list before it, `aux l_seq hne` forms an infinite
-r-reduction sequence for every start list idx `start`.
+r-reduction sequence for every start list idx `list_idx`.
 
 Parts of this lemma and its proof, crucially the structure and hypotheses,
 are due to Edward van de Meent on the Lean Zulip.
@@ -178,29 +170,31 @@ private lemma aux_inf_reduction_seq
     -- the first list by itself forms a chain
     (h₀ : List.Chain' r (l_seq 0))
     -- and each subsequent list continues where the last one left off.
-    (h₁ : ∀ n, List.Chain r ((l_seq n).getLast (List.length_pos.mp (hne n))) (l_seq (n + 1))):
-    ∀ start, reduction_seq r ⊤ (aux l_seq hne start) := by
+    (h₁ : ∀ n, List.Chain r ((l_seq n).getLast (hne n)) (l_seq (n + 1))):
+    ∀ list_idx, reduction_seq r ⊤ (aux l_seq hne list_idx) := by
   simp [List.chain_iff_get, List.chain'_iff_get, List.getLast_eq_getElem] at h₀ h₁ ⊢
-  intro start add
-  induction start, add using aux.induct l_seq hne
-  next start add hlt =>
+  intro list_idx elem_idx
+  induction list_idx, elem_idx using aux.induct l_seq hne
+  next list_idx elem_idx hlt =>
     rw [aux, dif_pos hlt, aux, aux]
     split
     case isTrue h =>
-      rcases start with (_ | start)
+      rcases list_idx with (_ | list_idx)
       · apply h₀
         omega
-      · apply (h₁ start).right
+      · apply (h₁ list_idx).right
         omega
     case isFalse h =>
-      obtain ⟨rfl⟩: add = (l_seq start).length - 1 := by omega
+      obtain ⟨rfl⟩: elem_idx = (l_seq list_idx).length - 1 := by omega
       simp_all
-      have := Nat.succ_le.mp (hne (start + 1))
-      simpa [dif_pos this] using (h₁ start).left this
-  next start add h₁ _ ih =>
+      have := List.length_pos.mpr (hne (list_idx + 1))
+      rw [dif_pos (by omega)]
+      · convert (h₁ list_idx).left this
+        omega
+  next list_idx elem_idx h₁ _ ih =>
     rw [aux, dif_neg h₁]
     convert ih using 1
-    rw [aux, dif_neg (h₁ ∘ ((lt_add_one add).trans ·))]
+    rw [aux, dif_neg (h₁ ∘ ((lt_add_one elem_idx).trans ·))]
     congr
     omega
 
@@ -216,7 +210,7 @@ The last element of the `n`th reduct list forms a chain with the `n + 1`th
 reduct list.
 -/
 private lemma hchain1 (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ f):
-    ∀n, List.Chain r ((inf_trans_lists f hf n).getLast (inf_trans_lists.nonempty' n)) (inf_trans_lists f hf (n + 1)) := by
+    ∀n, List.Chain r ((inf_trans_lists f hf n).getLast (inf_trans_lists.nonempty n)) (inf_trans_lists f hf (n + 1)) := by
   intro n
   simp [inf_trans_lists]
   obtain ⟨hlast₁, -⟩ := trans_chain'.spec (hf.inf_step n)
@@ -229,7 +223,7 @@ private lemma hchain1 (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ f):
 We form our expanded sequence by starting with `f 0`, and then continuing with
 all reducts of `f 0` in the infinite transitive sequence, as generated by `aux`.
 -/
-private def seq (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ f): ℕ → α
+private noncomputable def seq (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ f): ℕ → α
 | 0 => f 0
 | n + 1 => aux (inf_trans_lists f hf) inf_trans_lists.nonempty 0 n
 
@@ -252,7 +246,7 @@ private lemma seq_inf_reduction_seq (f: ℕ → α) (hf: reduction_seq r⁺ ⊤ 
   | zero =>
     simp [seq]
     have h: 0 < (inf_trans_lists f hf 0).length := by
-      exact Nat.succ_le.mp (inf_trans_lists.nonempty 0)
+      exact List.length_pos.mpr (inf_trans_lists.nonempty 0)
     rw [aux, dif_pos h]
     obtain ⟨-, hchain⟩ := trans_chain'.spec (hf.inf_step 0)
     rw [List.chain_iff_get] at hchain
@@ -304,85 +298,85 @@ produce an r-reduction sequence `f'` from an infinite r∗-reduction sequence `f
 -/
 
 /--
-If `guaranteed_step_weak` holds for some infinite reduction sequence, there is
-always a next non-reflexive step. This guarantees that an infinite r∗-reduction
-sequence can be expanded to an infinite r⁺-reduction sequence.
+We call an infinite reduction sequence _degenerate_ if, from some point onwards,
+it only contains steps from one element to itself.
 -/
-private def guaranteed_step_weak (f: ℕ → α) := ∀n, ∃m ≥ n, f m ≠ f (m + 1)
+def _root_.Thesis.reduction_seq.degenerate (hseq: reduction_seq r ⊤ f) :=
+  ∃n, ∀m ≥ n, f m = f (m + 1)
 
-/--
-`guaranteed_step_weak` is weak in the sense that it doesn't say anything about
-which `m ≥ n` exists. There must be a first `m`, and, this first `m` has the
-stronger properties expressed here: all elements between `n` and `m` must
-be equal.
--/
-private def guaranteed_step (f: ℕ → α) := ∀n, ∃m ≥ n, f m ≠ f (m + 1) ∧ (∀m' ∈ Set.Ioc n m, f n = f m')
+private def transitive_step_guarantee (hseq: reduction_seq r ⊤ f) :=
+  ∀n, ∃m ≥ n, f m ≠ f (m + 1) ∧ (∀m' ∈ Set.Ioc n m, f n = f m')
 
-/-- The existence of some next step implies the existence of a first next step. -/
-private lemma guaranteed_step_weak_imp_guaranteed_step (f: ℕ → α) (hgsw: guaranteed_step_weak f):
-    guaranteed_step f := by
+lemma tsg_of_not_degenerate
+    (hseq: reduction_seq r∗ ⊤ f) (hndeg: ¬hseq.degenerate):
+    transitive_step_guarantee hseq := by
+  dsimp [reduction_seq.degenerate] at hndeg
+  push_neg at hndeg
   intro n
-  use (Nat.find (hgsw n))
-  have ⟨hgt, hne⟩ := Nat.find_spec (hgsw n)
-  use hgt, hne
-  intro m' hm'
-  simp at hm'
-  suffices h: ∀k ≤ (m' - n), f n = f (n + k) by
-    · have := h (m' - n)
-      simp at this; convert this
-      omega
-  intro k hk
-  induction k with
-  | zero => rfl
-  | succ k ih =>
-    have: f n = f (n + k) := ih ?_
-    have: f (n + k) = f (n + k + 1) := hm'.2 (n + k) ?_ ?_
-    all_goals try omega
-    cc
+  have spec := Nat.find_spec (hndeg n)
+  have is_min := @Nat.find_min _ _ (H := hndeg n)
+  use Nat.find (hndeg n)
+  and_intros
+  · omega
+  · tauto
+  · intro m' hm'
+    simp at hm'
+    suffices h: ∀k ≤ (m' - n), f n = f (n + k) by
+      · have := h (m' - n)
+        simp at this; convert this
+        omega
+    intro k hk
+    induction k with
+    | zero => rfl
+    | succ k ih =>
+      have: f n = f (n + k) := ih ?_
+      have: f (n + k) = f (n + k + 1) := hm'.2 (n + k) ?_ ?_
+      all_goals try omega
+      cc
 
 section refl_trans_seq_has_guaranteed_step
 
-variable (f: ℕ → α) (hf: reduction_seq r∗ ⊤ f) (hgs: guaranteed_step f)
+variable {f: ℕ → α} (hf: reduction_seq r∗ ⊤ f) (htsg: transitive_step_guarantee hf)
 
 /--
 From some index `n` we step to a next index `choose (hgs n) + 1`, which is the
 end of a transitive step.
 -/
 private def trans_idx_step (n: ℕ): ℕ :=
-  choose (hgs n) + 1
+  choose (htsg n) + 1
 
 /--
 By iterating `trans_idx_step`, we can generate a sequence of indices into `f`
 which represent all transitive steps in `f`.
 -/
 private def trans_idxs (n: ℕ): ℕ :=
-  (trans_idx_step f hgs)^[n] 0
+  (trans_idx_step hf htsg)^[n] 0
 
 /--
 We form the sequence by getting the element at each index given by `trans_idxs`
 -/
 private def trans_seq (n: ℕ): α :=
-  f (trans_idxs f hgs n)
+  f (trans_idxs hf htsg n)
 
 /-- Taking a step from index `k` yields an index greater than `k`. -/
-private lemma trans_idx_step_inc (k: ℕ): k < trans_idx_step f hgs k := by
+private lemma trans_idx_step_inc (k: ℕ): k < trans_idx_step hf htsg k := by
   simp only [trans_idx_step]
-  linarith [choose_spec (hgs k)]
+  linarith [choose_spec (htsg k)]
 
 /-- Doing an extra iteration of `trans_idx_step` yields a larger index. -/
-private lemma trans_idxs_inc (k: ℕ): trans_idxs f hgs k < trans_idxs f hgs (k + 1) := by
+private lemma trans_idxs_inc (k: ℕ): trans_idxs hf htsg k < trans_idxs hf htsg (k + 1) := by
   simp only [trans_idxs, Function.iterate_succ', Function.comp, trans_idx_step_inc]
 
 /-- For all n, there is an element of `trans_idxs` that is larger than n. -/
-private lemma trans_idxs_tends_to_infty (n: ℕ): ∃k, n < trans_idxs f hgs k := by
+private lemma trans_idxs_tends_to_infty (n: ℕ): ∃k, n < trans_idxs hf htsg k := by
   induction n with
   | zero =>
     use 1; simp [trans_idxs]
-    exact trans_idx_step_inc f hgs 0
+    exact trans_idx_step_inc hf htsg 0
   | succ n ih =>
     obtain ⟨k, hk⟩ := ih
     use (k + 1)
-    simp [trans_idxs_inc f hgs k, Nat.lt_of_le_of_lt hk]
+    simp [trans_idxs_inc hf htsg k, Nat.lt_of_le_of_lt hk]
 
 /--
 If `n` is inbetween `trans_idxs f hgs k` and `trans_idxs f hgs (k + 1)`,
@@ -390,15 +384,15 @@ then `f n` must be equal to `f (trans_idxs f hgs k)`. Hence `f n` is an
 element of `trans_seq f hgs`.
 -/
 private lemma trans_idxs_inbetween (k: ℕ):
-    ∀n ∈ Set.Ico (trans_idxs f hgs k) (trans_idxs f hgs (k + 1)), f (trans_idxs f hgs k) = f n := by
-  set m₁ := trans_idxs f hgs k with m₁_def
-  set m₂ := trans_idxs f hgs (k + 1) with m₂_def
+    ∀n ∈ Set.Ico (trans_idxs hf htsg k) (trans_idxs hf htsg (k + 1)), f (trans_idxs hf htsg k) = f n := by
+  set m₁ := trans_idxs hf htsg k with m₁_def
+  set m₂ := trans_idxs hf htsg (k + 1) with m₂_def
 
   rintro n ⟨hn₁, hn₂⟩
   simp only [trans_idxs, Function.iterate_succ', Function.comp, trans_idx_step] at m₂_def
   cases hn₁.lt_or_eq
   case inr h => rw [h]
-  obtain ⟨-, -, heq⟩ := choose_spec (hgs m₁)
+  obtain ⟨-, -, heq⟩ := choose_spec (htsg m₁)
   apply heq
   rw [Set.mem_Ioc]
   omega
@@ -408,12 +402,13 @@ All `n` are sandwiched by two subsequent elements in `trans_idxs f hgs`.
 Combining this lemma with `trans_idxs_inbetween` above yields the proof
 that `trans_seq f hgs` contains all elements of `f`.
 -/
-private lemma trans_idxs_sandwich: ∀n, ∃k, n ∈ Set.Ico (trans_idxs f hgs k) (trans_idxs f hgs (k + 1)) := by
+private lemma trans_idxs_sandwich:
+    ∀n, ∃k, n ∈ Set.Ico (trans_idxs hf htsg k) (trans_idxs hf htsg (k + 1)) := by
   intro n
   simp
 
   -- there is some `k` s.t. `trans_idxs f hgs k` is greater than n
-  have hkgt := trans_idxs_tends_to_infty f hgs n
+  have hkgt := trans_idxs_tends_to_infty hf htsg n
 
   -- take the least k that satisfies the requirement
   have hk' := Nat.find_spec hkgt
@@ -437,13 +432,13 @@ private lemma trans_idxs_sandwich: ∀n, ∃k, n ∈ Set.Ico (trans_idxs f hgs k
 
 include hf in
 /-- `trans_seq f hgs` is an infinite r⁺-reduction sequence. -/
-private lemma trans_seq_inf_reduction_seq: reduction_seq r⁺ ⊤ (trans_seq f hgs) := by
+private lemma trans_seq_inf_reduction_seq: reduction_seq r⁺ ⊤ (trans_seq hf htsg) := by
   intro n
   simp only [Function.iterate_succ_apply', trans_seq, trans_idxs, trans_idx_step]
-  set f' := (trans_idx_step f hgs)
+  set f' := (trans_idx_step hf htsg)
 
-  obtain ⟨hc₁, hc₂, hc₃⟩ := choose_spec (hgs (f'^[n] 0))
-  set c := choose (hgs (f'^[n] 0))
+  obtain ⟨hc₁, hc₂, hc₃⟩ := choose_spec (htsg (f'^[n] 0))
+  set c := choose (htsg (f'^[n] 0))
 
   have: f (f'^[n] 0) = f c := by
     by_cases heq: (f'^[n] 0 = c)
@@ -457,32 +452,32 @@ private lemma trans_seq_inf_reduction_seq: reduction_seq r⁺ ⊤ (trans_seq f h
 
 
 /-- `trans_seq f hgs` contains all elements of `f`. -/
-private lemma trans_seq_contains_elems (n): ∃m, (trans_seq f hgs m) = f n := by
-  obtain ⟨k, hk⟩ := trans_idxs_sandwich f hgs n
+private lemma trans_seq_contains_elems (n): ∃m, (trans_seq hf htsg m) = f n := by
+  obtain ⟨k, hk⟩ := trans_idxs_sandwich hf htsg n
   use k, trans_idxs_inbetween _ _ _ _ hk
 
 
 include hf in
 /--
-If `f` satisfies the step guarantee, there must be an infinite r-reduction
+If `hf` is not degenerate, there must be an infinite r-reduction
 sequence which contains all elements of `f` and starts with `f 0`.
 
-This lemma first translates `f` to an infinite r⁺-reduction sequence, and
+This lemma first translates `hf` to an infinite r⁺-reduction sequence, and
 then uses the techniques for transitive reduction sequences developed above.
 -/
-private lemma gs_imp_exists_inf_regular_seq (hgsw: guaranteed_step_weak f):
+private lemma exists_inf_regular_seq_of_not_degenerate (hnd: ¬hf.degenerate):
     ∃f', reduction_seq r ⊤ f' ∧
          (∀n, ∃m, f n = f' m) ∧
          f 0 = f' 0 := by
-  have hgs: guaranteed_step f := guaranteed_step_weak_imp_guaranteed_step f hgsw
-  let f' := trans_seq f hgs
-  let hf' := trans_seq_inf_reduction_seq f hf hgs
+  have htsg := tsg_of_not_degenerate hf hnd
+  let f' := trans_seq hf htsg
+  let hf' := trans_seq_inf_reduction_seq hf htsg
 
   use (seq f' hf')
   and_intros
   · apply seq_inf_reduction_seq f' hf'
   · have h₁ := seq_contains_elems f' hf'
-    have h₂ := trans_seq_contains_elems f hgs
+    have h₂ := trans_seq_contains_elems hf htsg
     intro n
     obtain ⟨m₁, hm₁⟩ := h₂ n
     obtain ⟨m₂, hm₂⟩ := h₁ m₁
@@ -495,14 +490,13 @@ private lemma gs_imp_exists_inf_regular_seq (hgsw: guaranteed_step_weak f):
 end refl_trans_seq_has_guaranteed_step
 
 /--
-If the infinite r∗-reduction sequence has no guaranteed step, there must be
+If the infinite r∗-reduction sequence is degenerate, there must be
 some finite r∗-reduction sequence which contains all of the elements of the
 infinite r∗-reduction sequence, and starts with the same element.
 -/
-private lemma no_gs_imp_finite (f: ℕ → α) (hf: reduction_seq r∗ ⊤ f) (hngsw: ¬guaranteed_step_weak f):
+private lemma finite_of_degenerate (f: ℕ → α) (hf: reduction_seq r∗ ⊤ f) (hdg: hf.degenerate):
     ∃N: ℕ, ∃f', reduction_seq r∗ N f' ∧ (∀n, ∃m ≤ N, f' m = f n) ∧ f' 0 = f 0 := by
-  simp [guaranteed_step_weak] at hngsw
-  obtain ⟨N, hN⟩ := hngsw
+  obtain ⟨N, hN⟩ := hdg
   use N, f
 
   have: ∀m ≥ N, ∀k, f m = f (m + k) := by
@@ -554,14 +548,8 @@ there must be some (finite or infinite) reduction sequence
 -/
 lemma rt_seq_imp_regular_seq (f: ℕ → α) (hf: reduction_seq r∗ ⊤ f):
     ∃N f', reduction_seq r N f' ∧ (∀n, ∃(m: ℕ) (_: m ≤ N), f n = f' m) ∧ f 0 = f' 0 := by
-  by_cases hgsw: guaranteed_step_weak f
-  · obtain ⟨g, hg₁, hg₂, hg₃⟩ := gs_imp_exists_inf_regular_seq f hf hgsw
-    use ⊤, g
-    and_intros
-    · exact hg₁
-    · simp [hg₂]
-    · exact hg₃
-  · have := no_gs_imp_finite f hf hgsw
+  by_cases hdg: hf.degenerate
+  · have := finite_of_degenerate f hf hdg
     obtain ⟨N, f', hseq, heq, heq₀⟩ := this
     obtain ⟨N', f'', hrs, heq'₀, heq'⟩ := finite_seq_flatten N f' hseq
     use N', f'', hrs
@@ -573,6 +561,12 @@ lemma rt_seq_imp_regular_seq (f: ℕ → α) (hf: reduction_seq r∗ ⊤ f):
       use m', hm'₁
       cc
     · cc
+  · obtain ⟨g, hg₁, hg₂, hg₃⟩ := exists_inf_regular_seq_of_not_degenerate hf hdg
+    use ⊤, g
+    and_intros
+    · exact hg₁
+    · simp [hg₂]
+    · exact hg₃
 
 end flatten_refl_trans_seq
 

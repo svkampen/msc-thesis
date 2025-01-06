@@ -454,6 +454,6 @@ def cp_dcr₂ (hcp: cofinality_property A): DCRn 2 A := by
 /-- DCR₂ is a complete method for proving confluence of countable ARSs. -/
 def dcr₂_complete [Countable α] (A: ARS α I) (hc: confluent A.union_rel): DCRn 2 A :=
   -- A is countable and confluent => A has CP => A is DCR₂ by `cp_dcr₂`.
-  cnt_cr_imp_cp A hc |> cp_dcr₂ A
+  cp_of_countable_cr A hc |> cp_dcr₂ A
 
 end Thesis.TwoLabel

@@ -209,24 +209,9 @@ from a to some x in X.
 lemma exists_red_seq_set (X: Set α) (hX: ∃x ∈ X, r∗ a x):
     ∃N f x, x ∈ X ∧ is_reduction_seq_from r a x f N := by
   have ⟨x, hmem, hx⟩ := hX
-  induction hx using ReflTransGen.head_induction_on with
-  | refl =>
-    use 0, (fun _ ↦ x), x, hmem
-    simp [is_reduction_seq_from]
-  | @head b c rel₁ rel₂ ih =>
-    have: ∃x ∈ X, r∗ c x := by use x
-    have ⟨N, f, x', hx', hseq⟩ := ih this
-    let f' := fun n ↦ if n = 0 then b else f (n - 1)
-    use N + 1, f', x', hx'
-    and_intros
-    · simp only [↓reduceIte, f']
-    · simp [f']
-      exact hseq.2.1
-    · intro n hn
-      cases n
-      · simp [f', hseq.1, rel₁]
-      · simp [f']
-        exact hseq.2.2 _ (by norm_cast at hn ⊢; omega)
+  obtain ⟨N, f, h⟩ := reduction_seq.from_reflTrans hx
+  use N, f, x, hmem
+  tauto
 
 open Classical in
 noncomputable def dX (a: α) (X: Set α) (hX: ∃x ∈ X, r∗ a x)
