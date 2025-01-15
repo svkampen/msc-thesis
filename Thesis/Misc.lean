@@ -4,9 +4,11 @@ import Mathlib.Data.Rel
 
 open Relation
 
+variable {α β: Type*}
+
 inductive SymmGen (r: Rel α α): Rel α α where
-| fw_step: r x y → SymmGen r x y
-| bw_step: r y x → SymmGen r x y
+| fw_step {x y}: r x y → SymmGen r x y
+| bw_step {x y}: r y x → SymmGen r x y
 
 attribute [aesop 25% unsafe] SymmGen.fw_step
 attribute [aesop 25% unsafe] SymmGen.bw_step
@@ -62,11 +64,11 @@ postfix:max (priority := high) "⁺" => Rel.transGen
 
 section inv_props
 
-variable {r: Rel α α}
+variable {r: Rel α α} {x y: α}
 
 /-- Taking the inverse of a relation commutes with reflexive-transitive closure. -/
 @[simp]
-lemma star_inv_iff_inv_star {r: Rel α α}: r.inv∗ x y ↔ r∗ y x := by
+lemma star_inv_iff_inv_star: r.inv∗ x y ↔ r∗ y x := by
   constructor <;>
   · intro h
     induction h
@@ -79,7 +81,7 @@ def inv_star_of_star_inv: r∗ y x → r.inv∗ x y := star_inv_iff_inv_star.mpr
 
 /-- Taking the inverse of a relation commutes with transitive closure. -/
 @[simp]
-lemma trans_inv_iff_inv_trans {r: Rel α α}: r.inv⁺ x y ↔ r⁺ y x := by
+lemma trans_inv_iff_inv_trans: r.inv⁺ x y ↔ r⁺ y x := by
   constructor <;>
   · intro h
     induction h

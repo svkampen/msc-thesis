@@ -10,13 +10,13 @@ variable {α}
 
 section functional_def
 
-variable (r: Rel α α)
-
 /--
 A generic reduction sequence, which is finite if `N ≠ ⊤` and infinite otherwise.
 -/
-abbrev reduction_seq (N: ℕ∞) (f: ℕ → α) :=
+abbrev reduction_seq (r: Rel α α) (N: ℕ∞) (f: ℕ → α) :=
   ∀n: ℕ, n < N → r (f n) (f (n + 1))
+
+variable {r: Rel α α} {N: ℕ∞} {f: ℕ → α}
 
 @[simp]
 lemma reduction_seq_top_iff: reduction_seq r ⊤ f ↔ ∀n, r (f n) (f (n + 1)) := by
@@ -27,17 +27,17 @@ lemma reduction_seq_coe_iff {N: ℕ}: reduction_seq r N f ↔ ∀n < N, r (f n) 
   simp [reduction_seq]
 
 /-- In an infinite reduction sequence, we can take a step from any `n` to `n + 1`. -/
-lemma reduction_seq.inf_step {r: Rel α α} (hseq: reduction_seq r ⊤ f) (n: ℕ): r (f n) (f (n + 1)) := by
+lemma reduction_seq.inf_step (hseq: reduction_seq r ⊤ f) (n: ℕ): r (f n) (f (n + 1)) := by
   simpa using hseq n
 
 /-- Any function is a length-0 reduction sequence, containing only f 0. -/
-lemma reduction_seq.refl (f: ℕ → α): reduction_seq r 0 f := by
+lemma reduction_seq.refl: reduction_seq r 0 f := by
   simp [reduction_seq]
 
 
-lemma reduction_seq.from_reflTrans {r: Rel α α} (hrt: r∗ a b): ∃(N: ℕ) (f: ℕ → α), reduction_seq r N f ∧ f 0 = a ∧ f N = b := by
+lemma reduction_seq.from_reflTrans {a b} (hrt: r∗ a b): ∃(N: ℕ) (f: ℕ → α), reduction_seq r N f ∧ f 0 = a ∧ f N = b := by
   induction hrt with
-  | refl => use 0, (fun _ ↦ a), reduction_seq.refl _ _
+  | refl => use 0, (fun _ ↦ a), reduction_seq.refl
   | @tail b c seq step ih =>
     obtain ⟨N, f, seq, hstart, hend⟩ := ih
     let f': ℕ → α := fun m ↦ if (m < N + 1) then (f m) else c
@@ -55,7 +55,7 @@ lemma reduction_seq.from_reflTrans {r: Rel α α} (hrt: r∗ a b): ∃(N: ℕ) (
 In a generic reduction sequence `reduction_seq r N f`,
 `f m` is a reduct of `f n`, assuming `n < m < N + 1`.
 -/
-lemma reduction_seq.trans {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) (hm: m < N + 1) (hn: n < m): r⁺ (f n) (f m) := by
+lemma reduction_seq.trans (hseq: reduction_seq r N f) (n m: ℕ) (hm: m < N + 1) (hn: n < m): r⁺ (f n) (f m) := by
   obtain ⟨k, hk⟩: ∃k, m = n + k + 1 := Nat.exists_eq_add_of_lt (by omega)
   subst hk
   induction k with
@@ -75,7 +75,7 @@ lemma reduction_seq.trans {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) 
     exact lt_of_add_lt_add_right hm
 
 
-lemma reduction_seq.reflTrans {r: Rel α α} (hseq: reduction_seq r N f) (n m: ℕ) (hm: m < N + 1) (hn: n ≤ m):
+lemma reduction_seq.reflTrans (hseq: reduction_seq r N f) (n m: ℕ) (hm: m < N + 1) (hn: n ≤ m):
     r∗ (f n) (f m) := by
   rcases (Nat.eq_or_lt_of_le hn) with (rfl | hn)
   · rfl
@@ -101,13 +101,17 @@ last element of `hseq`, i.e. `f N`.
 @[simp]
 def reduction_seq.end (N: ℕ) (hseq: reduction_seq r N f): α := f N
 
-def reduction_seq.contains {r: Rel α α} (hseq: reduction_seq r N f) (a b: α) :=
+def reduction_seq.contains (hseq: reduction_seq r N f) (a b: α) :=
   ∃n, f n = a ∧ f (n + 1) = b ∧ n < N
 
-def fun_aux (N: ℕ) (f g: ℕ → α): ℕ → α :=
+section concat
+
+variable (N: ℕ) (f g: ℕ → α)
+
+def fun_aux: ℕ → α :=
   fun n ↦ if (n ≤ N) then f n else g (n - N)
 
-def reduction_seq.concat {r} {N₁: ℕ} {N₂: ℕ∞}
+def reduction_seq.concat {N₁: ℕ} {N₂: ℕ∞} {f g: ℕ → α}
     (hseq: reduction_seq r N₁ f) (hseq': reduction_seq r N₂ g)
     (hend: f N₁ = g 0):
     reduction_seq r (N₁ + N₂) (fun_aux N₁ f g) := by
@@ -131,6 +135,8 @@ def reduction_seq.concat {r} {N₁: ℕ} {N₂: ℕ∞}
     · norm_cast at *
       omega
 
+end concat
+
 def reduction_seq.tail (hseq: reduction_seq r N f):
     reduction_seq r (N - 1) (fun n ↦ f (n + 1)) := by
   cases N with
@@ -145,7 +151,7 @@ def reduction_seq.flatten {N: ℕ} (hseq: reduction_seq r∗ N f):
       hseq.start = hseq'.start ∧ hseq.end = hseq'.end := by
   induction N generalizing f with
   | zero =>
-    use 0, f, refl r f
+    use 0, f, refl
     aesop
   | succ n ih =>
     obtain ⟨N₂, f₂, hseq₂, h⟩ := ih hseq.tail
@@ -174,13 +180,13 @@ section inductive_def
 
 section rs_def
 
-variable (r: Rel α α)
+variable (r: Rel α α) {s: (α × α)} (ss: List (α × α))
 
 def steps_reversed: List (α × α) → List (α × α)
 | [] => []
 | (x::xs) => steps_reversed xs ++ [(x.2, x.1)]
 
-lemma steps_reversed_append:
+lemma steps_reversed_append {xs ys: List (α × α)}:
       steps_reversed (xs ++ ys) = steps_reversed ys ++ steps_reversed xs
     := by
   induction xs with
@@ -229,7 +235,7 @@ end rs_def
 attribute [simp] ReductionSeq.refl
 attribute [aesop 25% unsafe] ReductionSeq.head
 
-variable {r: Rel α α}
+variable {r: Rel α α} {x y z: α} {ss ss': List (α × α)}
 
 namespace ReductionSeq
 
@@ -269,14 +275,14 @@ lemma concat (h₁ : ReductionSeq r x y ss) (h₂: ReductionSeq r y z ss'): Redu
 If `a` is an element of a concatenated sequence, it must be a member of one of
 the two subsequences.
 -/
-lemma mem_concat (hseq₁: ReductionSeq r x y ss₁) (hseq₂: ReductionSeq r y z ss₂):
-    ∀x, x ∈ (hseq₁.concat hseq₂).elems ↔ (x ∈ hseq₁.elems ∨ x ∈ hseq₂.elems) := by
+lemma mem_concat (hseq: ReductionSeq r x y ss) (hseq': ReductionSeq r y z ss'):
+    ∀x, x ∈ (hseq.concat hseq').elems ↔ (x ∈ hseq.elems ∨ x ∈ hseq'.elems) := by
   intro a
-  induction hseq₁ with
+  induction hseq with
   | refl => simp [concat, elems]
   | @head x y z ss step seq ih =>
     simp [concat]
-    have ih := ih hseq₂
+    have ih := ih hseq'
     have := seq.y_elem
     simp [elems] at this ih ⊢
     clear * -ih this
@@ -299,7 +305,7 @@ lemma exists_iff_rel_star {x y : α}: r∗ x y ↔ ∃ss, ReductionSeq r x y ss 
 
 
 lemma to_reduction_seq (hseq: ReductionSeq r x y ss):
-    ∃(N :ℕ), ∃f, reduction_seq r N f ∧ (∀x ∈ hseq.elems, ∃n ≤ N, f n = x) ∧ f 0 = x := by
+    ∃(N :ℕ), ∃f, reduction_seq r N f ∧ (∀x ∈ hseq.elems, ∃n < N + 1, f n = x) ∧ f 0 = x := by
   induction hseq with
   | @refl x =>
     use 0, Function.const _ x
@@ -399,7 +405,7 @@ lemma empty_iff: ReductionSeq r x y [] ↔ x = y := by
   · rintro rfl
     exact refl
 
-lemma last (hseq: ReductionSeq r x y (ss' ++ [b])): b.2 = y := by
+lemma last {b} (hseq: ReductionSeq r x y (ss' ++ [b])): b.2 = y := by
   generalize hss: ss' ++ [b] = ss
   rw [hss] at hseq
   induction hseq generalizing ss' b with

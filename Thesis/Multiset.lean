@@ -5,9 +5,9 @@ section multiset_ext
 open Relation
 open Classical
 
-section
+section ext_def
 
-variable {a} (r: Rel α α)
+variable {α: Type*} (r: Rel α α)
 
 /--
 We define a multiset extension of a relation `r`, which is generally expected
@@ -30,12 +30,14 @@ with all intermediate steps in `l`. This is isomorphic to `MultisetExt`; see
 `MSESeq.iff_multiset_ext`.
 -/
 inductive MSESeq: List (Multiset α) → Multiset α → Multiset α → Prop
-| single (h: MultisetExt1 r M N) : MSESeq [M, N] M N
-| step (h: MultisetExt1 r M N) (tail: MSESeq l N O): MSESeq (M::l) M O
+| single {M N} (h: MultisetExt1 r M N) : MSESeq [M, N] M N
+| step {l} {M N O} (h: MultisetExt1 r M N) (tail: MSESeq l N O): MSESeq (M::l) M O
 
-end
+end ext_def
 
-variable {α} {r: Rel α α}
+section lemmas
+
+variable {α: Type*} {r: Rel α α} {l: List (Multiset α)} {M M' N O: Multiset α} {s m m': α}
 
 lemma MSESeq.l_nonempty (h: MSESeq r l M N): l.length > 0 := by
   cases h <;>
@@ -59,7 +61,8 @@ lemma MSESeq.iff_multiset_ext: MultisetExt r M N ↔ ∃l, MSESeq r l M N := by
     induction hl <;> aesop (add unsafe TransGen.single) (add unsafe TransGen.head)
 
 /-- Every index in l represents a step `l[n] <# l[n+1]`. -/
-def MSESeq.get_step (hseq: MSESeq r l M N): ∀n, (hlen: n < l.length - 1) → MultisetExt1 r l[n] l[n+1] := by
+def MSESeq.get_step (hseq: MSESeq r l M N):
+    ∀n, (hlen: n < l.length - 1) → MultisetExt1 r l[n] l[n+1] := by
   intro n hn
   induction hseq generalizing n with
   | single h => simp at hn; simpa [hn]
@@ -71,16 +74,20 @@ def MSESeq.get_step (hseq: MSESeq r l M N): ∀n, (hlen: n < l.length - 1) → M
       simpa
 
 /-- An element has never increased if for all steps M <# N, the count of x is no higher in M than in N -/
-def never_increased_elem (hseq: MSESeq r l M N) (x: α) := ∀n, (hlen: n < l.length - 1) → l[n].count x ≤ l[n+1].count x
+def never_increased_elem (hseq: MSESeq r l M N) (x: α) :=
+  ∀n, (hlen: n < l.length - 1) → l[n].count x ≤ l[n+1].count x
 
 /-- An element has decreased in a step if the count in M is one less than the count in N. -/
-def decreased_elem1 (M N: Multiset α) (m: α) := M.count m + 1 = N.count m
+def decreased_elem1 (M N: Multiset α) (m: α) :=
+  M.count m + 1 = N.count m
 
 /-- An element has decreased if there is some step M <# N in which it has decreased. -/
-def decreased_elem (hseq: MSESeq r l M N) (x: α) := ∃n, ∃(h: n < l.length - 1), decreased_elem1 l[n] l[n+1] x
+def decreased_elem (hseq: MSESeq r l M N) (x: α) :=
+  ∃n, ∃(h: n < l.length - 1), decreased_elem1 l[n] l[n+1] x
 
 /-- If an element has never increased, in particular the count at the end is no larger than at the start. -/
-lemma never_increased_elem.overall {r: Rel α α} (hseq: MSESeq r l M N) (x: α) (hni: never_increased_elem hseq x): M.count x ≤ N.count x := by
+lemma never_increased_elem.overall {r: Rel α α} (hseq: MSESeq r l M N) (x: α) (hni: never_increased_elem hseq x):
+    M.count x ≤ N.count x := by
   induction hseq with
   | single h => exact hni 0 (by simp)
   | step h tail ih =>
@@ -114,9 +121,9 @@ def is_largest_decreased_elem {r: Rel α α} (hseq: MSESeq r l M N) (m: α) :=
 Extending a MSESeq with a step that has a larger decreased elem makes that element the sequence's LDE.
 -/
 lemma is_largest_decreased_elem.cons_larger
-    (hseq: MSESeq r l N O) (hlde: is_largest_decreased_elem hseq k)
-    (h: MultisetExt1 r M N) (hde: decreased_elem1 M N k') (hlt: ¬(r k k')):
-  is_largest_decreased_elem (MSESeq.step h hseq) k := by
+    (hseq: MSESeq r l N O) (hlde: is_largest_decreased_elem hseq m)
+    (h: MultisetExt1 r M N) (hde: decreased_elem1 M N m') (hlt: ¬(r m m')):
+  is_largest_decreased_elem (MSESeq.step h hseq) m := by
     unfold is_largest_decreased_elem at hlde ⊢
     constructor
     · obtain ⟨n, hlen, hn⟩ := hlde.1
@@ -165,25 +172,25 @@ variable [sor: IsStrictOrder α r]
 Extending a MSESeq with a step that has a smaller decreased elem doesn't change the sequence's LDE.
 -/
 lemma is_largest_decreased_elem.cons_smaller
-    (hseq: MSESeq r l N O) (hlde: is_largest_decreased_elem hseq k)
-    (h: MultisetExt1 r M N) (hde: decreased_elem1 M N k') (hlt: r k k'):
-  is_largest_decreased_elem (MSESeq.step h hseq) k' := by
+    (hseq: MSESeq r l N O) (hlde: is_largest_decreased_elem hseq m)
+    (h: MultisetExt1 r M N) (hde: decreased_elem1 M N m') (hlt: r m m'):
+  is_largest_decreased_elem (MSESeq.step h hseq) m' := by
     unfold is_largest_decreased_elem at hlde ⊢
     constructor
     · use 0
       obtain ⟨l', hl'⟩ := hseq.l_expand
       simpa [hl']
     unfold decreased_elem
-    intro m hm
-    simp at hm
-    obtain ⟨n, ⟨hlen, hde'⟩⟩ := hm
+    intro s hs
+    simp at hs
+    obtain ⟨n, ⟨hlen, hde'⟩⟩ := hs
     cases' n with n
     · cases hseq <;>
       · simp at hde'
-        have hmk': m = k' := decreased_elem1.unique h hde m hde'
+        have hmk': s = m' := decreased_elem1.unique h hde s hde'
         rw [hmk']
         apply sor.irrefl
-    · exact (hlde.2 m (by use n, (by omega), hde')) ∘ (sor.trans _ _ _ hlt ·)
+    · exact (hlde.2 s (by use n, (by omega), hde')) ∘ (sor.trans _ _ _ hlt ·)
 
 /-- An element decreases in every step. -/
 lemma MultisetExt1.has_dec_elem (h: MultisetExt1 r M N):
@@ -326,14 +333,14 @@ If N <¹# M, and M consists of a ::ₘ M0, then either
 - some other element is deleted, so a appears in N
 - a is deleted and replaced by a set of reducts K
 -/
-lemma less_add (h: MultisetExt1 r N M) (hM: M = a ::ₘ M0):
-    (∃M, MultisetExt1 r M M0 ∧ N = a ::ₘ M) ∨
-    (∃K, (∀b ∈ K, r b a) ∧ N = M0 + K) := by
+lemma less_add (h: MultisetExt1 r N M) (hM: M = m ::ₘ M'):
+    (∃M, MultisetExt1 r M M' ∧ N = m ::ₘ M) ∨
+    (∃K, (∀b ∈ K, r b m) ∧ N = M' + K) := by
   rcases h with ⟨M, M', s, h⟩
   rcases Multiset.cons_eq_cons.mp hM with (⟨rfl, rfl⟩ | ⟨_, K, rfl, rfl⟩)
   · aesop
   · left;
-    use (K + M'), MultisetExt1.rel K M' s h, Multiset.cons_add a K M'
+    use (K + M'), MultisetExt1.rel K M' s h, Multiset.cons_add m K M'
 
 theorem all_accessible (hwf: WellFounded r) (M: Multiset α): Acc (MultisetExt1 r) M := by
   induction M using Multiset.induction with
@@ -366,4 +373,4 @@ instance MultisetExt.wf [IsWellFounded α r]: IsWellFounded (Multiset α) (Multi
     apply (isWellFounded_iff α r).mp
     exact inferInstance
 
-end multiset_ext
+end lemmas

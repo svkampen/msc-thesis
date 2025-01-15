@@ -6,9 +6,9 @@ import Thesis.Cofinality
 
 namespace Thesis
 
-variable {α I: Type}
+variable {α I J: Type*}
 
-variable (A: ARS α I)
+variable (A: ARS α I) {r: Rel α α}
 
 open Relation
 
@@ -74,7 +74,7 @@ If an ARS is DCRn, it is DCR.
 It is somewhat unclear to me why we need these explicit universe annotations,
 and Lean can't just figure it out on its own, but I suppose it doesn't matter.
 -/
-lemma DCRn_imp_DCR {A: ARS α I}: DCRn n A → DCR A := by
+lemma DCRn_imp_DCR {n: ℕ} {A: ARS α I}: DCRn n A → DCR A := by
   intro h
   obtain ⟨B, hb⟩ := h
   simp [DCR]
@@ -198,6 +198,8 @@ end MainRoad
 
 namespace RewriteDistance
 
+variable {a: α}
+
 @[simp]
 def is_reduction_seq_from (r: Rel α α) (a b: α) (f: ℕ → α) (N: ℕ) :=
   f 0 = a ∧ f N = b ∧ reduction_seq r N f
@@ -235,17 +237,20 @@ If `a -> b` and the minimal distance from `a` to the main road is `n + 1`, the
 distance from `b` to the main road must be at least `n`. (If not, `a` could go
 via `b` and arrive at the main road earlier.)
 -/
-lemma dX_step_ge {N f} {mr: reduction_seq C.ars.union_rel N f} (hcr: cofinal_reduction mr) (a b: C.Subtype) (hrel: C.ars.union_rel a b) {n: ℕ} (hdX: dX a mr.elems (hcr a) = n + 1):
-    dX b mr.elems (hcr b) ≥ n := by
+lemma dX_step_ge
+    (a b: C.Subtype) {X: Set C.Subtype}
+    (ha: ∃x ∈ X, C.ars.union_rel∗ a x) (hb: ∃x ∈ X, C.ars.union_rel∗ b x)
+    (hrel: C.ars.union_rel a b) {n: ℕ} (hdX: dX a X ha = n + 1):
+      dX b X hb ≥ n := by
 
-  let dXb := dX b mr.elems (hcr b)
+  let dXb := dX b X hb
   by_contra! hlt
 
   -- there is a length-d(b) path from b to m ∈ M
-  have ⟨f, x, hmem, heq₁, heq₂, hseq⟩ := dX.spec _ (hcr b)
+  have ⟨f, x, hmem, heq₁, heq₂, hseq⟩ := dX.spec _ hb
 
   -- d(a) is minimal, so there cannot be a path with length d(b) + 1, because d(b) < n.
-  have hmin := dX.min _ (hcr a) (dXb.val + 1) (by simp_rw [dXb, hdX]; omega)
+  have hmin := dX.min _ ha (dXb.val + 1) (by simp_rw [dXb, hdX]; omega)
 
   push_neg at hmin
 
@@ -270,24 +275,16 @@ lemma dX_step_ge {N f} {mr: reduction_seq C.ars.union_rel N f} (hcr: cofinal_red
       linarith
 
 /--
-If there is a length-`n + 1` path from `a` to the main road, and `b` lies on the
-path from `a` to the main road, the minimal distance from `b` to the main road
-is at most `n`, since the path without its head is a length-`n` path from `b` to
-the main road.
+If there is a path of length `n` from `a` to some `x ∈ X`, then the distance `dX(a, X)` is at most `n`.
 -/
-lemma dX_step_le {N f} {mr: reduction_seq C.ars.union_rel N f} (hcr: cofinal_reduction mr) (a x: C.Subtype) (hx: x ∈ mr.elems) {f': ℕ → C.Subtype} {n': ℕ} (hseq: is_reduction_seq_from C.ars.union_rel a x f' (n' + 1)):
-    dX (f' 1) mr.elems (hcr _) ≤ n' := by
-
-  let g' := fun n ↦ f' (n + 1)
-  have: is_reduction_seq_from C.ars.union_rel (f' 1) x g' n' := by
-    and_intros
-    · dsimp [g']
-    · simpa [g'] using hseq.right.left
-    · convert hseq.right.right.tail
-
+lemma dX_step_le
+    (a x: C.Subtype) {X: Set C.Subtype} (hx: x ∈ X)
+    (hX: ∃x ∈ X, C.ars.union_rel∗ a x) {f: ℕ → C.Subtype} {n}
+    (hrel: is_reduction_seq_from C.ars.union_rel a x f n):
+      dX a X hX ≤ n := by
   by_contra! hgt
-  apply dX.min mr.elems (hcr (f' 1)) n' hgt
-  use g', x
+  apply dX.min X hX n hgt
+  use f, x
 
 end step
 
@@ -315,7 +312,7 @@ variable
 def red_step_in_seq {f: ℕ → α} (b c: α) (_hseq: reduction_seq r N f) :=
   ∃(n: ℕ) (_hn: n < N), b = f n ∧ c = f (n + 1)
 
-lemma red_step_in_seq.is_red_step {b c: α} {r: Rel α α} {f: ℕ → α} {hseq: reduction_seq r N f}:
+lemma red_step_in_seq.is_red_step {b c: α} {f: ℕ → α} {hseq: reduction_seq r N f}:
     red_step_in_seq b c hseq → (r b c) := by
   rintro ⟨n, ⟨hn, hb, hc⟩⟩
   aesop
@@ -393,8 +390,15 @@ lemma dX_imp_red_seq (n: ℕ) (b: C.Subtype):
 
     have: (dX (f 1) _ hpath) = n := by
       apply Nat.le_antisymm
-      · apply dX_step_le hcr b x hmem₁ ⟨heq₁, ⟨h ▸ heq₂, h ▸ hseq'⟩⟩
-      · apply dX_step_ge hcr b (f 1) _ h
+      · apply dX_step_le (f 1) x hmem₁ (f := fun n ↦ f (n + 1))
+        and_intros
+        · rfl
+        · simp [h ▸ heq₂]
+        · intro n hlt
+          apply hseq'
+          norm_cast at hlt ⊢
+          omega
+      · apply dX_step_ge b (f 1) (hcr b) (hcr (f 1)) _ h
         rw [<-heq₁]
         apply hseq'
         rw [h]
@@ -580,7 +584,7 @@ def dcr_total_ars (hcp': cofinality_property_conv A): ARS α ℕ where
       (SingleComponent.C' (MainRoad.seq C hcp') (MainRoad.is_cr _ hcp')).rel n ⟨b, h.1⟩ ⟨c, h.2⟩
 
 
-def dcr_total.reduction_equivalent:
+def dcr_total.reduction_equivalent (hcp': cofinality_property_conv A):
     A.union_rel = (dcr_total_ars A hcp').union_rel := by
   ext a b
   constructor
@@ -607,7 +611,7 @@ The dcr_total_ars is locally decreasing. This follows from the fact that each
 component is locally decreasing, any diverging steps z <-j x i-> y must be
 within one component, and thus have a decreasing diagram from z ->> d <<- y.
 -/
-def dcr_total.is_ld:
+def dcr_total.is_ld (hcp': cofinality_property_conv A):
     locally_decreasing (dcr_total_ars A hcp') := by
   apply stronger_decreasing_imp_locally_decreasing
   intro x y z i j ⟨hxy, hxz⟩
@@ -662,8 +666,8 @@ def cp_imp_dcr (hcp: cofinality_property A): DCR A := by
 
   use (dcr_total_ars A hcp.to_conv)
   constructor
-  · exact dcr_total.reduction_equivalent A
-  · exact dcr_total.is_ld A
+  · exact dcr_total.reduction_equivalent A hcp.to_conv
+  · exact dcr_total.is_ld A hcp.to_conv
 
 
 end Prop14230

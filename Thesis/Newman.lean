@@ -21,9 +21,11 @@ namespace Thesis.Newman
 open Relation
 open Classical
 
+variable {α: Type*}
+
 section newman_barendregt
 
-variable {α} (r: Rel α α)
+variable (r: Rel α α)
 
 /-- An ambiguous element `a` has at least two distinct normal forms. -/
 def ambiguous (a: α) :=
@@ -124,7 +126,7 @@ end newman_barendregt
 /- The transitive closure of `r.inv` is a strict order if `r` is SN. -/
 section strict_order_trans_inv
 
-variable {α} {r: Rel α α}
+variable {r: Rel α α}
 
 /-- If `r` is strongly normalizing, the transitive closure of `r.inv` is a strict order. -/
 instance inv_trans_strict_order_of_sn (hsn: strongly_normalizing r) : IsStrictOrder α (r.inv)⁺ where
@@ -155,7 +157,7 @@ variable {r: Rel α α}
 
 /-- Newman's Lemma using well-founded induction w.r.t (r.inv)⁺. -/
 lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
-  have hwf: IsWellFounded α (r.inv)⁺ := wf_inv_trans_of_sn hsn
+  have hwf := wf_inv_of_sn r hsn
 
   intro a
   induction' a using hwf.induction with a wf_ih
@@ -175,8 +177,8 @@ lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
   clear hab hac
 
   /- By well-founded induction, b' and c' are confluent as they are reducts of a. -/
-  have hconb': confluent' r b' := wf_ih b' (TransGen.single hab')
-  have hconc': confluent' r c' := wf_ih c' (TransGen.single hac')
+  have hconb': confluent' r b' := wf_ih b' hab'
+  have hconc': confluent' r c' := wf_ih c' hac'
 
   /- b' and c' converge at some point d' by weak confluence. -/
   obtain ⟨d', hb'd', hc'd'⟩ := hwc ⟨hab', hac'⟩
@@ -190,7 +192,9 @@ lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
   /- This point d is the point where b and c converge. -/
   use d, ReflTransGen.trans hbe hed, hcd
 
+section newman3
 
+variable {x y: α} {ss: List (α × α)}
 -- Prerequisites for 3rd proof of Newman's Lemma.
 
 /--
@@ -341,7 +345,7 @@ private lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGe
     have := hbd.take (k + 1) (by omega)
     simpa [ReductionSeq.elems] using this.to_reflTrans
   · use ss[n + 1].2, hac
-    have := steps_reversed_mem hmem
+    have := steps_reversed_mem _ hmem
     simp [ss₂, List.mem_iff_getElem] at this
     obtain ⟨k, hk, heq⟩ := this
     obtain ⟨rfl⟩: y = ss₂'[k].1 := by rw [heq]
@@ -399,5 +403,6 @@ lemma newman₃ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
   apply hM₂ hseq'₂.elems _ hless
   use ss'₂, hseq'₂
 
+end newman3
 
 end Thesis.Newman

@@ -11,15 +11,14 @@ open RewriteDistance
 open Relation
 
 variable
-  {α I: Type} {A: ARS α I}
+  {α I: Type*} {A: ARS α I}
   {C: Component A}
   (hcp: cofinality_property_conv A)
-
-variable
   {N: ℕ∞} {f: ℕ → C.Subtype}
   (main_road: reduction_seq C.ars.union_rel N f)
   {hacyclic: main_road.acyclic}
   (hcr: cofinal_reduction main_road)
+  (a b: C.Subtype)
 
 
 -- At some points we will require there to be a well-order on α.
@@ -27,47 +26,32 @@ variable
 -- (see `exists_wellOrder`).
 variable [LinearOrder α]
 
-def on_main_road_imp_d0 {a} (heq: a ∈ main_road.elems):
+def d0_of_on_main_road {a} (hmem: a ∈ main_road.elems):
     (dX a main_road.elems (hcr a)).val = 0 := by
   have: is_reduction_seq_from C.ars.union_rel a a (fun n ↦ a) 0 := by
     simp
 
   by_contra h
-  have hzerolt: 0 < (dX a main_road.elems (hcr a)).val := by
+  replace h: 0 < (dX a main_road.elems (hcr a)).val := by
     omega
 
-  simp at heq
-  obtain ⟨n, hlt, heq⟩ := heq
-
-  apply dX.min _ _ 0 hzerolt
-  use (fun n ↦ a)
-  use a
-  rw [<-heq]
-  constructor
-  · simp
-    use n
-  · rw [<-heq] at this
-    exact this
+  apply dX.min _ _ 0 h
+  use (fun n ↦ a), a, hmem
 
 
-def step_on_main_road_imp_step {a b: C.Subtype} (hs: main_road.contains a b): C.ars.union_rel a b := by
+def step_of_main_road_step {a b: C.Subtype} (hs: main_road.contains a b): C.ars.union_rel a b := by
   simp [reduction_seq.contains] at hs
   obtain ⟨n, rfl, rfl, hlt⟩ := hs
   exact main_road n hlt
 
 def step_minimizing (a b: C.Subtype) :=
-  C.ars.union_rel a b ∧ (dX a main_road.elems (hcr a)).val = (dX b main_road.elems (hcr b)).val + 1 ∧ -- a -> b ∧ d(a) = d(b) + 1
-  ∀b', C.ars.union_rel a b' ∧ (dX b main_road.elems (hcr b)).val = (dX b' main_road.elems (hcr b')).val → b' ≥ b -- for all b' s.t. a -> b' ∧ d(b) = d(b'), b' ≥ b.
-
-def step_minimizing_imp_step {a b: C.Subtype} (hs: step_minimizing main_road hcr a b):
-    C.ars.union_rel a b := by
-  simp [step_minimizing] at hs ⊢
-  tauto
+  (dX a main_road.elems (hcr a)).val = (dX b main_road.elems (hcr b)).val + 1 ∧ -- a -> b ∧ d(a) = d(b) + 1
+  ∀b', C.ars.union_rel a b' → (dX b main_road.elems (hcr b)).val = (dX b' main_road.elems (hcr b')).val → b' ≥ b -- for all b' s.t. a -> b' ∧ d(b) = d(b'), b' ≥ b.
 
 def C': ARS C.Subtype (Fin 2) where
   rel := fun n b c ↦
     match n with
-      | 0 => (main_road.contains b c ∨ step_minimizing main_road hcr b c)
+      | 0 => C.ars.union_rel b c ∧ (main_road.contains b c ∨ step_minimizing main_road hcr b c)
       | 1 => C.ars.union_rel b c ∧ ¬(main_road.contains b c ∨ step_minimizing main_road hcr b c)
 
 
@@ -79,13 +63,9 @@ lemma C'.reduction_equivalent (b c: C.Subtype):
     by_cases h: (main_road.contains b c ∨ step_minimizing main_road hcr b c)
     · use 0
     · use 1
-  · simp [C', ARS.union_rel] at h
+  · dsimp [C', ARS.union_rel] at h
     obtain ⟨i, hi⟩ := h
-    split at hi
-    · cases hi
-      · simp [step_on_main_road_imp_step main_road, *]
-      · simp [step_minimizing_imp_step main_road, *]
-    · simpa [ARS.union_rel] using hi.left
+    split at hi <;> tauto
 
 /-- Equivalent to steps_along_hseq in Prop 14.2.30. -/
 lemma steps_on_main_road {n k: ℕ} (hk: n + k < N + 1):
@@ -102,13 +82,17 @@ lemma steps_on_main_road {n k: ℕ} (hk: n + k < N + 1):
     apply ReflTransGen.tail (ih hlt')
 
     simp [C']
-    left
-    use (n + k)
-    use rfl, rfl
-    norm_cast
+    have: main_road.contains (f (n + k)) (f (n + (k + 1))) := by
+      use (n + k), rfl, rfl
+      norm_cast
+
+    refine ⟨?_, ?_⟩
+    · convert step_of_main_road_step main_road this
+      simp
+    · left; exact this
 
 /-- Lemma 4.9(ii); if a, b ∈ M, ∃d, a ->>_0 d ∧ b ->>_0 d. -/
-lemma main_road_join (a b: C.Subtype) (ha: a ∈ main_road.elems) (hb: b ∈ main_road.elems):
+lemma main_road_join (ha: a ∈ main_road.elems) (hb: b ∈ main_road.elems):
     ∃d, ((C' main_road hcr).rel 0)∗ a d ∧ ((C' main_road hcr).rel 0)∗ b d := by
   simp at ha hb
 
@@ -132,7 +116,7 @@ lemma main_road_join (a b: C.Subtype) (ha: a ∈ main_road.elems) (hb: b ∈ mai
 
 include hacyclic in
 /-- Lemma 4.9 (iii): There is at most one b s.t. a ->₀ b. -/
-lemma zero_step_unique {a b b': C.Subtype}:
+lemma zero_step_unique {a b b'}:
     (C' main_road hcr).rel 0 a b ∧ (C' main_road hcr).rel 0 a b' → b = b' := by
   rintro ⟨hb, hb'⟩
 
@@ -144,15 +128,16 @@ lemma zero_step_unique {a b b': C.Subtype}:
       use n
       tauto
 
-    have d0 := on_main_road_imp_d0 main_road hcr hmem
+    have d0 := d0_of_on_main_road main_road hcr hmem
+
     -- steps a->b and a->b' cannot be minimizing, as d(a) = 0 and 0 cannot be n + 1.
     replace hb: main_road.contains a b := by
-      apply hb.resolve_right
+      apply hb.right.resolve_right
       rw [step_minimizing]
       omega
 
     replace hb': main_road.contains a b' := by
-      apply hb'.resolve_right
+      apply hb'.right.resolve_right
       rw [step_minimizing]
       omega
 
@@ -164,8 +149,8 @@ lemma zero_step_unique {a b b': C.Subtype}:
     congr
     apply hacyclic hlt₁ hlt₂
     rw [heqa₁, heqa₂]
-  · replace hb: step_minimizing main_road hcr a b := by
-      apply hb.resolve_left
+  · replace hb: C.ars.union_rel a b ∧ step_minimizing main_road hcr a b := by
+      refine ⟨hb.left, hb.right.resolve_left ?_⟩
       push_neg at h
       rintro ⟨n, hn⟩
       specialize h n hn.left.symm
@@ -173,8 +158,8 @@ lemma zero_step_unique {a b b': C.Subtype}:
       trans N + 1
       · apply le_self_add
       · exact h
-    replace hb': step_minimizing main_road hcr a b' := by
-      apply hb'.resolve_left
+    replace hb': C.ars.union_rel a b' ∧ step_minimizing main_road hcr a b' := by
+      refine ⟨hb'.left, hb'.right.resolve_left ?_⟩
       push_neg at h
       rintro ⟨n, hn⟩
       specialize h n hn.left.symm
@@ -195,7 +180,7 @@ lemma zero_step_unique {a b b': C.Subtype}:
 
 variable [WellFoundedLT α]
 
-lemma L4_9_iv (a: C.Subtype) (ha: a ∉ main_road.elems):
+lemma exists_distance_decreasing_step (a: C.Subtype) (ha: a ∉ main_road.elems):
     ∃b, (C' main_road hcr).rel 0 a b ∧
       (dX a main_road.elems (hcr a)).val =
       (dX b main_road.elems (hcr b)).val + 1 := by
@@ -203,19 +188,9 @@ lemma L4_9_iv (a: C.Subtype) (ha: a ∉ main_road.elems):
     suffices: (dX a main_road.elems (hcr a)).val ≠ 0
     · exact Nat.exists_eq_succ_of_ne_zero this
 
-    intro hdx
-    have := dX.spec main_road.elems (hcr a)
-    rw [hdx] at this
-
-    obtain ⟨f, x, hxmem, hseq⟩ := this
-    simp at ha hxmem
-
-    unfold is_reduction_seq_from at hseq
-
-    obtain ⟨n, hlt, heq⟩ := hxmem
-    specialize ha n hlt
-    apply ha
-    rw [heq, <-hseq.left, <-hseq.right.left]
+    contrapose! ha
+    obtain ⟨f', x, hmem, rfl, rfl, hseq⟩ := ha ▸ dX.spec main_road.elems (hcr a)
+    exact hmem
 
   obtain ⟨f, m, hmem, heq₁, heq₂, hseq⟩ := dX.spec main_road.elems (hcr a)
   have hrel: C.ars.union_rel (f 0) (f 1) := by
@@ -225,12 +200,15 @@ lemma L4_9_iv (a: C.Subtype) (ha: a ∉ main_road.elems):
 
   have hdXb: dX (f 1) main_road.elems (hcr (f 1)) = n := by
     apply le_antisymm
-    · apply dX_step_le hcr a m hmem
+    · apply dX_step_le (f 1) m hmem (f := fun n ↦ f (n + 1))
       and_intros
-      · exact heq₁
-      · exact hdX ▸ heq₂
-      · exact hdX ▸ hseq
-    · apply dX_step_ge hcr (f 0) (f 1)
+      · rfl
+      · simp only [hdX ▸ heq₂]
+      · intro n' hlt
+        apply hseq
+        norm_cast at hlt ⊢
+        omega
+    · apply dX_step_ge (f 0) (f 1) (hcr (f 0)) (hcr (f 1))
       · exact hrel
       · exact heq₁ ▸ hdX
 
@@ -253,14 +231,13 @@ lemma L4_9_iv (a: C.Subtype) (ha: a ∉ main_road.elems):
   use b
   constructor
   · simp [C']
-    right
+    refine ⟨?_, Or.inr ?_⟩
+    simpa using hbmem.left
     and_intros
-    · exact hbmem.left
     · exact hbmem.right
-    · rintro b' ⟨hb'rel, hb'dist⟩
+    · intro b' hb'rel hb'dist
       have := hmin b' ?_
-      simp at this
-      exact this
+      simpa using this
       use hb'rel
       rw [<-hb'dist]
       exact hbmem.right
@@ -275,23 +252,15 @@ private lemma main_road_reduction_aux (a: C.Subtype) (n: ℕ) (hn: n = dX a main
     rw [<-hn] at this
     obtain ⟨f, m, hmem, hseq⟩ := this
     use m, hmem
-    unfold is_reduction_seq_from at hseq
     rw [<-hseq.1, <-hseq.2.1]
   | succ n ih =>
-    have := dX.spec main_road.elems (hcr a)
-    obtain ⟨f', m, hmem, hseq⟩ := this
+    by_cases ha: a ∈ main_road.elems
+    · use a
 
-    have ha: a ∉ main_road.elems := by
-      by_contra ha
-      have := on_main_road_imp_d0 _ hcr ha
-      omega
-
-    obtain ⟨b, hbrel, hgt⟩ := L4_9_iv main_road hcr a ha
-
+    obtain ⟨b, hbrel, hgt⟩ := exists_distance_decreasing_step main_road hcr a ha
     obtain ⟨m', hmem', hseq⟩ := ih b (by omega)
 
     use m', hmem'
-
     apply ReflTransGen.head hbrel hseq
 
 /--
@@ -346,7 +315,7 @@ lemma C'.stronger_decreasing: stronger_decreasing (C' main_road hcr) := by
 
 end SingleComponent
 
-variable (A: ARS α I)
+variable {α I: Type*} (A: ARS α I)
 
 /--
 If A has the cofinality property, any component of A is DCR₂.
@@ -369,7 +338,7 @@ namespace MultiComponent
 open Relation
 
 variable
-  {α I: Type}
+  {α I: Type*}
   {A: ARS α I}
   [hlo: LinearOrder α] [hwf: WellFoundedLT α]
   (hcp: cofinality_property_conv A)
@@ -380,7 +349,7 @@ def cp_dcr₂_ars: ARS α (Fin 2) where
       (SingleComponent.C' (MainRoad.seq C hcp) (MainRoad.is_cr C hcp)).rel n ⟨a, h.1⟩ ⟨b, h.2⟩
 
 
-def reduction_equivalent: A.union_rel a b ↔ (cp_dcr₂_ars hcp).union_rel a b := by
+def reduction_equivalent {a b}: A.union_rel a b ↔ (cp_dcr₂_ars hcp).union_rel a b := by
   let C := A.component a
 
   constructor

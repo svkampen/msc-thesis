@@ -25,7 +25,7 @@ structure ARS (α I : Type*) where
   /-- The rewrite relations for this ARS. -/
   rel : I → Rel α α
 
-variable {α I}
+variable {α β I}
 variable (A : ARS α I)
 
 /-- The union of the indexed relations of an ARS. -/
@@ -40,7 +40,7 @@ abbrev ARS.union_lt [PartialOrder I] (A: ARS α I): I → Rel α α :=
 /--
 If a -> b with an index smaller than i, then certainly a -> b with an index smaller than (max i j).
 -/
-lemma ARS.union_lt_max [LinearOrder I] (A: ARS α I) (a b: α):
+lemma ARS.union_lt_max [LinearOrder I] {i j} (A: ARS α I) (a b: α):
     A.union_lt i a b → A.union_lt (max i j) a b := by
   intro h
   rcases (max_cases i j) with (⟨heq₁, -⟩ | ⟨heq₁, heq₂⟩)
@@ -128,7 +128,7 @@ def ARS.reduction_graph (B: ARS β I) (b: β) : SubARS B :=
   SubARS.generate B {b}
 
 @[simp]
-lemma ARS.reduction_graph_p: (A.reduction_graph a).p = (A.union_rel∗ a ·) := by
+lemma ARS.reduction_graph_p {a}: (A.reduction_graph a).p = (A.union_rel∗ a ·) := by
   simp [ARS.reduction_graph, SubARS.generate]
 
 
@@ -195,16 +195,16 @@ lemma component_unique {A: ARS α I} {c₁ c₂: Component A} (a: α):
 
 
 /-- The element from which a component is derived is trivially a member of that component. -/
-lemma ARS.component_root_mem {A: ARS α I}: (A.component a).p a := by
+lemma ARS.component_root_mem {A: ARS α I} {a}: (A.component a).p a := by
   simp [ARS.component]
   rfl
 
-lemma component_mem_eq {A: ARS α I} {x: Component A} (helem: x.p b):
+lemma component_mem_eq {A: ARS α I} {x: Component A} {b} (helem: x.p b):
     (A.component b) = x :=
   component_unique b ARS.component_root_mem helem
 
 @[simp]
-lemma ARS.component_p: (A.component a).p = (A.conv a ·) := by
+lemma ARS.component_p {a}: (A.component a).p = (A.conv a ·) := by
   simp [ARS.component]
 
 private lemma restrict_aux {p: α → Prop}
@@ -338,7 +338,5 @@ lemma SubARS.down_wcr_union (S: SubARS A): weakly_confluent (A.union_rel) → we
 -- etc, sub-ARS also preserves subcommutative, DP, WN, WF, UN, NF, Ind, Inc, FB, CP
 
 end ars_def
-
-variable (A: ARS α I) (S: SubARS A)
 
 end Thesis

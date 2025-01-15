@@ -17,7 +17,7 @@ section wcr_wn_inc
 
 open Relation
 
-variable {α I: Type*} (r: Rel α α)
+variable {α I: Type*} (r: Rel α α) {a: α}
 
 /-- If an element is strongly normalizing, so is every element in its reduction graph. -/
 private lemma elem_graph_sn (A: ARS α Unit):
@@ -49,7 +49,7 @@ private lemma union_rel_unit (A: ARS α Unit): A.union_rel = A.rel () := by
 If there is an infinite transitive reduction sequence of elements (aₙ) which all reduce to some
 common element b, then the reduction relation cannot be increasing.
 -/
-lemma not_increasing_of_infinite_common_reduct (hseq: reduction_seq r⁺ ⊤ f) (hf: ∀n, r⁺ (f n) b):
+lemma not_increasing_of_infinite_common_reduct {f} {b} (hseq: reduction_seq r⁺ ⊤ f) (hf: ∀n, r⁺ (f n) b):
     ¬increasing r := by
   intro hInc
   obtain ⟨g, hg⟩ := increasing_trans_of_increasing hInc

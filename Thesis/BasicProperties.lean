@@ -472,7 +472,7 @@ lemma confluent_of_subcommutative: subcommutative r → confluent r := by
       use d
 
 /-- A normal form is always strongly normalizing. -/
-lemma strongly_normalizing_of_normal_form (hnf: normal_form r a): strongly_normalizing' r a := by
+lemma strongly_normalizing_of_normal_form {a} (hnf: normal_form r a): strongly_normalizing' r a := by
   by_contra hinf
   obtain ⟨f, hf⟩ := hinf
   have: r a (f 1) := hf.1 ▸ hf.2 0 (ENat.coe_lt_top 0)
