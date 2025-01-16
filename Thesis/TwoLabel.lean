@@ -39,11 +39,6 @@ def d0_of_on_main_road {a} (hmem: a ∈ main_road.elems):
   use (fun n ↦ a), a, hmem
 
 
-def step_of_main_road_step {a b: C.Subtype} (hs: main_road.contains a b): C.ars.union_rel a b := by
-  simp [reduction_seq.contains] at hs
-  obtain ⟨n, rfl, rfl, hlt⟩ := hs
-  exact main_road n hlt
-
 def step_minimizing (a b: C.Subtype) :=
   (dX a main_road.elems (hcr a)).val = (dX b main_road.elems (hcr b)).val + 1 ∧ -- a -> b ∧ d(a) = d(b) + 1
   ∀b', C.ars.union_rel a b' → (dX b main_road.elems (hcr b)).val = (dX b' main_road.elems (hcr b')).val → b' ≥ b -- for all b' s.t. a -> b' ∧ d(b) = d(b'), b' ≥ b.
@@ -87,7 +82,7 @@ lemma steps_on_main_road {n k: ℕ} (hk: n + k < N + 1):
       norm_cast
 
     refine ⟨?_, ?_⟩
-    · convert step_of_main_road_step main_road this
+    · convert main_road.contains_step this
       simp
     · left; exact this
 
@@ -320,7 +315,7 @@ variable {α I: Type*} (A: ARS α I)
 /--
 If A has the cofinality property, any component of A is DCR₂.
 -/
-def dcr₂_component (hcp: cofinality_property A): ∀(C: Component A), DCRn 2 C.ars := by
+lemma dcr₂_component (hcp: cofinality_property A): ∀(C: Component A), DCRn 2 C.ars := by
   intro C
   unfold DCRn
   obtain ⟨linorder, wellfounded⟩ := exists_wellOrder α

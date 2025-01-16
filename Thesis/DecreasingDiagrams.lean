@@ -233,14 +233,14 @@ open MainRoad
 variable {A: ARS α I} {C: Component A} (hcp: cofinality_property_conv A)
 
 /--
-If `a -> b` and the minimal distance from `a` to the main road is `n + 1`, the
-distance from `b` to the main road must be at least `n`. (If not, `a` could go
+If `a -> b` and the minimal distance from `a` to `X` is `n + 1`, the
+distance from `b` to `X` must be at least `n`. (If not, `a` could go
 via `b` and arrive at the main road earlier.)
 -/
 lemma dX_step_ge
-    (a b: C.Subtype) {X: Set C.Subtype}
-    (ha: ∃x ∈ X, C.ars.union_rel∗ a x) (hb: ∃x ∈ X, C.ars.union_rel∗ b x)
-    (hrel: C.ars.union_rel a b) {n: ℕ} (hdX: dX a X ha = n + 1):
+    (a b: α) {X: Set α}
+    (ha: ∃x ∈ X, r∗ a x) (hb: ∃x ∈ X, r∗ b x)
+    (hrel: r a b) {n: ℕ} (hdX: dX a X ha = n + 1):
       dX b X hb ≥ n := by
 
   let dXb := dX b X hb
@@ -278,9 +278,9 @@ lemma dX_step_ge
 If there is a path of length `n` from `a` to some `x ∈ X`, then the distance `dX(a, X)` is at most `n`.
 -/
 lemma dX_step_le
-    (a x: C.Subtype) {X: Set C.Subtype} (hx: x ∈ X)
-    (hX: ∃x ∈ X, C.ars.union_rel∗ a x) {f: ℕ → C.Subtype} {n}
-    (hrel: is_reduction_seq_from C.ars.union_rel a x f n):
+    (a x: α) {X: Set α} (hx: x ∈ X)
+    (hX: ∃x ∈ X, r∗ a x) {f: ℕ → α} {n}
+    (hrel: is_reduction_seq_from r a x f n):
       dX a X hX ≤ n := by
   by_contra! hgt
   apply dX.min X hX n hgt
@@ -301,26 +301,16 @@ open RewriteDistance
 variable
   {A: ARS α I} {C: Component A}
   (hcp: cofinality_property_conv A)
-
-variable
   {N: ℕ∞} {f: ℕ → C.Subtype}
   (main_road: reduction_seq C.ars.union_rel N f)
   {hacyclic: main_road.acyclic}
   (hcr: cofinal_reduction main_road)
 
 
-def red_step_in_seq {f: ℕ → α} (b c: α) (_hseq: reduction_seq r N f) :=
-  ∃(n: ℕ) (_hn: n < N), b = f n ∧ c = f (n + 1)
-
-lemma red_step_in_seq.is_red_step {b c: α} {f: ℕ → α} {hseq: reduction_seq r N f}:
-    red_step_in_seq b c hseq → (r b c) := by
-  rintro ⟨n, ⟨hn, hb, hc⟩⟩
-  aesop
-
 def C': ARS C.Subtype ℕ where
   rel := fun n b c ↦
     match n with
-      | 0 => red_step_in_seq b c main_road
+      | 0 => main_road.contains b c
       | n + 1 => C.ars.union_rel b c ∧ n = dX c main_road.elems (hcr c)
 
 /--
@@ -356,7 +346,7 @@ lemma C'.reduction_equivalent (b c: C.Subtype):
   · simp only [C', ARS.union_rel] at h
     obtain ⟨n, hn⟩ := h
     split at hn
-    · exact hn.is_red_step
+    · exact main_road.contains_step hn
     · tauto
 
 /--
@@ -372,11 +362,12 @@ lemma dX_imp_red_seq (n: ℕ) (b: C.Subtype):
   intro h
   induction n generalizing b with
   | zero =>
+    use b, (fun n ↦ b)
     obtain ⟨f, x, hfx⟩ := dX.spec main_road.elems (hcr b)
     rw [h] at hfx
     simp at hfx ⊢
-    obtain ⟨⟨n, hlt, rfl⟩, hfeq₁, hfeq₂⟩ := hfx
-    use n, hlt, f, hfeq₁, hfeq₂
+    convert hfx.left
+    rw [<-hfx.2.2, <-hfx.2.1]
   | succ n ih =>
     obtain ⟨f, x, hmem₁, heq₁, heq₂, hseq'⟩ := dX.spec main_road.elems (hcr b)
 
@@ -466,29 +457,25 @@ lemma C'.is_stronger_decreasing:
 
   rcases i with (- | i) <;> rcases j with (- | j)
   · -- coincide, hseq is acyclic
-    simp [C', red_step_in_seq] at hbc hbd
-    obtain ⟨n, hbeq, hn, hceq⟩ := hbc
-    obtain ⟨m, hbeq', hm, hdeq⟩ := hbd
-    have: c = d := by
-      have heq := hacyclic hn hm (by aesop)
-      subst heq
-      rw [hceq, hdeq]
-    subst this
-    use c
+    simp [C'] at hbc hbd
+    obtain ⟨n, hbeq, rfl, hceq⟩ := hbc
+    obtain ⟨m, hbeq', rfl, hdeq⟩ := hbd
+    obtain ⟨rfl⟩: n = m := hacyclic hceq hdeq (by aesop)
+    use (f (n + 1))
   · -- i = 0, j > 0
-    dsimp only [C', red_step_in_seq] at hbd hbc
+    dsimp only [C'] at hbd hbc
     obtain ⟨x, g, hxmem, hdeq, hxeq, hseq'⟩ := dX_imp_red_seq main_road hcr _ _ hbd.2.symm
 
     simp at hxmem
 
     obtain ⟨idx₁, hidx₁, heq_idx₁⟩ := hxmem
-    obtain ⟨idx₂, hidx₂, heq_idx₂⟩ := hbc
+    obtain ⟨idx₂, heq_idx₂, heq_idx₂', hidx₂⟩ := hbc
 
     let hend_idx := max idx₁ (idx₂ + 1)
     use f hend_idx
 
     have hctail: ((C' main_road hcr).rel 0)∗ c (f hend_idx) := by
-      rw [heq_idx₂.2]
+      rw [<-heq_idx₂']
       have := htail (idx₂ + 1) _ ?_ hidx₁
       rw [max_comm] at this
       apply this
@@ -562,7 +549,7 @@ end SingleComponent
 /--
 If A has the cofinality property, any component of A is DCR.
 -/
-def dcr_component (hcp: cofinality_property A): ∀(C: Component A), DCR C.ars := by
+lemma dcr_component (hcp: cofinality_property A): ∀(C: Component A), DCR C.ars := by
   intro C
   -- we use the natural numbers as labels, with the expected partial order
   use ℕ, inferInstance, inferInstance

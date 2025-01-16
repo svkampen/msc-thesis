@@ -104,6 +104,14 @@ def reduction_seq.end (N: ℕ) (hseq: reduction_seq r N f): α := f N
 def reduction_seq.contains (hseq: reduction_seq r N f) (a b: α) :=
   ∃n, f n = a ∧ f (n + 1) = b ∧ n < N
 
+lemma reduction_seq.contains_step (hseq: reduction_seq r N f) {a b} (hab: hseq.contains a b):
+    r a b := by
+  obtain ⟨n, rfl, rfl, hlt⟩ := hab
+  apply hseq
+  exact hlt
+
+
+
 section concat
 
 variable (N: ℕ) (f g: ℕ → α)

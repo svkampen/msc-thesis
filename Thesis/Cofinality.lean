@@ -191,7 +191,7 @@ lemma cp_of_countable_cr [cnt: Countable α] (cr: confluent A.union_rel):
     simpa! [f'] using (common_reduct (f' n) (f n)).choose_spec.left
 
   -- with a corresponding regular reduction sequence
-  obtain ⟨N, g, hseq, hgf'₁, hgf'₂⟩ := InfReductionSeq.rt_seq_imp_regular_seq f' hf'
+  obtain ⟨N, g, hseq, hgf'₁, hgf'₂⟩ := InfReductionSeq.regular_seq_of_rt_seq f' hf'
 
   -- and every element in β has a reduct in the sequence
   use N, g, hseq
