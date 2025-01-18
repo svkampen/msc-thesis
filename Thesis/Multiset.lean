@@ -362,7 +362,7 @@ theorem all_accessible (hwf: WellFounded r) (M: Multiset α): Acc (MultisetExt1 
           | empty => simpa using Acc.intro _ h
           | cons c K ih =>
             have := wf_ih c (hK₁ c (Multiset.mem_cons_self c K)) (M0 + K)
-            convert this ?_ using 1 <;> aesop
+            convert this ?_ using 1 <;> simp_all
 
 
 instance MultisetExt.wf [IsWellFounded α r]: IsWellFounded (Multiset α) (MultisetExt r) where

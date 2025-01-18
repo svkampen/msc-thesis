@@ -34,7 +34,7 @@ abbrev ARS.union_rel: Rel α α :=
 
 /-- The union of reduction relations with an index smaller than i. -/
 @[simp]
-abbrev ARS.union_lt [PartialOrder I] (A: ARS α I): I → Rel α α :=
+abbrev ARS.union_lt [LT I] (A: ARS α I): I → Rel α α :=
   fun i x y ↦ ∃j, j < i ∧ A.rel j x y
 
 /--

@@ -11,7 +11,7 @@ open RewriteDistance
 open Relation
 
 variable
-  {α I: Type*} {A: ARS α I}
+  {α I: Type} {A: ARS α I}
   {C: Component A}
   (hcp: cofinality_property_conv A)
   {N: ℕ∞} {f: ℕ → C.Subtype}
@@ -310,7 +310,7 @@ lemma C'.stronger_decreasing: stronger_decreasing (C' main_road hcr) := by
 
 end SingleComponent
 
-variable {α I: Type*} (A: ARS α I)
+variable {α I: Type} (A: ARS α I)
 
 /--
 If A has the cofinality property, any component of A is DCR₂.
@@ -333,7 +333,7 @@ namespace MultiComponent
 open Relation
 
 variable
-  {α I: Type*}
+  {α I: Type}
   {A: ARS α I}
   [hlo: LinearOrder α] [hwf: WellFoundedLT α]
   (hcp: cofinality_property_conv A)

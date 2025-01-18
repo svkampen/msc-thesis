@@ -6,7 +6,7 @@ import Thesis.Cofinality
 
 namespace Thesis
 
-variable {α I J: Type*}
+variable {α I J: Type}
 
 variable (A: ARS α I) {r: Rel α α}
 
@@ -22,7 +22,7 @@ by reductions of the form
  - `b ->>_<α · ->⁼_β · ->>_{<α ∪ <β} d`
  - `c ->>_<β · ->⁼_α · ->>_{<α ∪ <β} d`
 -/
-def locally_decreasing [PartialOrder I] [IsWellFounded I (· < ·)] (B: ARS α I) :=
+def locally_decreasing [LT I] [WellFoundedLT I] (B: ARS α I) :=
   ∀a b c i j, B.rel i a b ∧ B.rel j a c →
     ∃d, ((B.union_lt i)∗ • (B.rel j)⁼ • (B.union_lt i ∪ B.union_lt j)∗) b d ∧
         ((B.union_lt j)∗ • (B.rel i)⁼ • (B.union_lt i ∪ B.union_lt j)∗) c d
@@ -31,7 +31,7 @@ def stronger_decreasing [LinearOrder J] (B: ARS α J) :=
   ∀a b c i j, B.rel i a b ∧ B.rel j a c →
     ∃d, ((B.union_lt (max i j))∗) b d ∧ ((B.union_lt (max i j))∗) c d
 
-lemma stronger_decreasing_imp_locally_decreasing [LinearOrder J] [IsWellFounded J (· < ·)] {B: ARS α J}:
+lemma stronger_decreasing_imp_locally_decreasing [LinearOrder J] [WellFoundedLT J] {B: ARS α J}:
     stronger_decreasing B → locally_decreasing B := by
   intro h
   rintro a b c i j ⟨hab, hac⟩
@@ -58,7 +58,7 @@ An ARS `A` is called Decreasing Church-Rosser (DCR) if there exists a reduction-
 equivalent ARS `B` which is locally decreasing.
 -/
 def DCR :=
-  ∃(I: Type) (_: PartialOrder I) (_: IsWellFounded I (· < ·)) (B: ARS α I),
+  ∃(I: Type) (_: LT I) (_: WellFoundedLT I) (B: ARS α I),
     A.union_rel = B.union_rel ∧ locally_decreasing B
 
 /--
@@ -658,5 +658,71 @@ def cp_imp_dcr (hcp: cofinality_property A): DCR A := by
 
 
 end Prop14230
+
+namespace NewmanDCR
+
+def A': ARS α α where
+  rel := fun i a b ↦ i = a ∧ A.union_rel a b
+
+def my_lt: LT α where
+  lt := fun a b ↦ A.union_rel⁺ b a
+
+def my_wf (A: ARS α I) (hsn: strongly_normalizing A.union_rel): @WellFoundedLT α (my_lt A) where
+  wf := by
+    simp [my_lt]
+    have := (wf_inv_of_sn _ hsn).transGen
+    convert this using 1
+    ext a b
+    simp
+
+def A'_locally_decreasing (A: ARS α I) (hwc: weakly_confluent A.union_rel) (hsn: strongly_normalizing A.union_rel):
+    @locally_decreasing _ _ (my_lt A) (my_wf A hsn) (A' A) := by
+  rintro x y z i j ⟨hxy, hxz⟩
+  simp [A'] at hxy hxz
+  obtain ⟨rfl, hxy⟩ := hxy
+  obtain ⟨rfl, hxz⟩ := hxz
+  have ⟨d, hd₁, hd₂⟩ := hwc ⟨hxy, hxz⟩
+  use d
+  constructor
+  · use y, (by rfl), y, (by rfl)
+    apply ReflTransGen.mono Rel.union_left
+    simp [A']
+    unfold ARS.union_lt
+    simp
+    clear hd₂
+    induction hd₁ with
+    | refl => rfl
+    | @tail b c h₁ h₂ ih =>
+      apply ReflTransGen.tail ih
+      use b
+      refine ⟨?_, rfl, h₂⟩
+      simp [my_lt]
+      apply TransGen.head'_iff.mpr
+      use y
+  · use z, (by rfl), z, (by rfl)
+    apply ReflTransGen.mono Rel.union_left
+    simp [A']
+    unfold ARS.union_lt
+    simp
+    clear hd₁
+    induction hd₂ with
+    | refl => rfl
+    | @tail b c h₁ h₂ ih =>
+      apply ReflTransGen.tail ih
+      use b
+      refine ⟨?_, rfl, h₂⟩
+      simp [my_lt]
+      apply TransGen.head'_iff.mpr
+      use z
+
+lemma newman_dcr (hwc: weakly_confluent A.union_rel) (hsn: strongly_normalizing A.union_rel): DCR A := by
+  use α, (my_lt A), (my_wf A hsn), (A' A)
+  constructor
+  · ext a b
+    constructor <;> simp_all [A']
+  · apply A'_locally_decreasing A hwc hsn
+
+
+end NewmanDCR
 
 end Thesis
