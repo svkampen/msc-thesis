@@ -1,5 +1,7 @@
 import Thesis.BasicProperties
 
+namespace Thesis
+
 section multiset_ext
 
 open Relation
@@ -374,3 +376,7 @@ instance MultisetExt.wf [IsWellFounded α r]: IsWellFounded (Multiset α) (Multi
     exact inferInstance
 
 end lemmas
+
+end multiset_ext
+
+end Thesis

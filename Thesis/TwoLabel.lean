@@ -40,8 +40,9 @@ def d0_of_on_main_road {a} (hmem: a ∈ main_road.elems):
 
 
 def step_minimizing (a b: C.Subtype) :=
-  (dX a main_road.elems (hcr a)).val = (dX b main_road.elems (hcr b)).val + 1 ∧ -- a -> b ∧ d(a) = d(b) + 1
-  ∀b', C.ars.union_rel a b' → (dX b main_road.elems (hcr b)).val = (dX b' main_road.elems (hcr b')).val → b' ≥ b -- for all b' s.t. a -> b' ∧ d(b) = d(b'), b' ≥ b.
+  (dX a main_road.elems (hcr a)).val = (dX b main_road.elems (hcr b)).val + 1 ∧
+  ∀b', C.ars.union_rel a b' →
+    (dX b main_road.elems (hcr b)).val = (dX b' main_road.elems (hcr b')).val → b' ≥ b
 
 def C': ARS C.Subtype (Fin 2) where
   rel := fun n b c ↦

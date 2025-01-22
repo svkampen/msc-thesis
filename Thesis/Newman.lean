@@ -153,13 +153,17 @@ instance wf_inv_trans_of_sn (hsn: strongly_normalizing r): IsWellFounded α (r.i
 
 end strict_order_trans_inv
 
+
 variable {r: Rel α α}
 
-/-- Newman's Lemma using well-founded induction w.r.t (r.inv)⁺. -/
+/-- Newman's Lemma using well-founded induction w.r.t (r.inv). -/
 lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): confluent r := by
-  have hwf := wf_inv_of_sn r hsn
-
   intro a
+
+  -- We wish to prove that any a is confluent.
+  -- We proceed by well-founded induction w.r.t r.inv
+  -- and get IH: ∀b, r a b -> confluent' r b
+  have hwf := wf_inv_of_sn r hsn
   induction' a using hwf.induction with a wf_ih
   rintro b c ⟨hab, hac⟩
 
@@ -187,10 +191,12 @@ lemma newman₂ (hsn: strongly_normalizing r) (hwc: weakly_confluent r): conflue
   obtain ⟨e, hbe, hd'e⟩ := hconb' ⟨hb'b, hb'd'⟩
 
   /- c' ->* c and c' ->* d' ->* e, so c and e converge at some point d. -/
-  obtain ⟨d, hcd, hed⟩ := hconc' ⟨hc'c, ReflTransGen.trans hc'd' hd'e⟩
+  obtain ⟨d, hcd, hed⟩ := hconc' ⟨hc'c, hc'd'.trans hd'e⟩
 
   /- This point d is the point where b and c converge. -/
-  use d, ReflTransGen.trans hbe hed, hcd
+  use d, hbe.trans hed, hcd
+
+
 
 section newman3
 

@@ -434,7 +434,6 @@ lemma acyclic_of_all_appear_finitely (hninf: ¬∃n, appears_infinitely f n):
       hseq'.acyclic r f hseq hf
 
 end all_appear_finitely
-
 end acyclic_infinite
 
 section cyclic
@@ -462,12 +461,6 @@ lemma cofinal_reduction_acyclic (hseq: reduction_seq r N f) (hcf: cofinal_reduct
     · use ⊤
       exact acyclic_of_all_appear_finitely _ _ _ hcf hinf
 
-
-
-
-
 end cyclic
-
 end
-
 end Thesis
