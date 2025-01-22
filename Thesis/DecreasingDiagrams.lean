@@ -293,7 +293,7 @@ end RewriteDistance
 
 
 -- Formalization of Proposition 14.2.30 from Terese.
-namespace Prop14230
+namespace DCRComplete
 
 namespace SingleComponent
 open RewriteDistance
@@ -657,7 +657,7 @@ def cp_imp_dcr (hcp: cofinality_property A): DCR A := by
   · exact dcr_total.is_ld A hcp.to_conv
 
 
-end Prop14230
+end DCRComplete
 
 namespace NewmanDCR
 
