@@ -648,7 +648,7 @@ def dcr_total.is_ld (hcp': cofinality_property_conv A):
 /--
 Proposition 14.2.30: Any ARS with the cofinality property is DCR.
 -/
-def cp_imp_dcr (hcp: cofinality_property A): DCR A := by
+def dcr_of_cp (hcp: cofinality_property A): DCR A := by
   use ℕ, inferInstance, inferInstance
 
   use (dcr_total_ars A hcp.to_conv)

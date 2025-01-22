@@ -308,6 +308,11 @@ lemma C'.stronger_decreasing: stronger_decreasing (C' main_road hcr) := by
     exact hmcseq
     exact hd₂
 
+include hacyclic in
+lemma C'.locally_decreasing: locally_decreasing (C' main_road hcr) := by
+  apply stronger_decreasing_imp_locally_decreasing
+  apply stronger_decreasing main_road hcr
+  exact hacyclic
 
 end SingleComponent
 
@@ -325,7 +330,7 @@ lemma dcr₂_component (hcp: cofinality_property A): ∀(C: Component A), DCRn 2
   constructor
   · ext
     rw [<-SingleComponent.C'.reduction_equivalent]
-  · apply stronger_decreasing_imp_locally_decreasing (SingleComponent.C'.stronger_decreasing _ _)
+  · apply (SingleComponent.C'.locally_decreasing _ _)
     exact MainRoad.is_acyclic C hcp.to_conv
 
 
