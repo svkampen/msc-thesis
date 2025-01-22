@@ -207,7 +207,7 @@ variable {x y: α} {ss: List (α × α)}
 If a landscape contains a peak, there must be a landscape whose elements
 are smaller than our original landscape according to the multiset order.
 -/
-private lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGen r) x y ss) (hp: hseq.has_peak):
+lemma newman_step' (hwc: weakly_confluent r) (hseq: ReductionSeq (SymmGen r) x y ss) (hp: hseq.has_peak):
     ∃(ss': _) (hseq': ReductionSeq (SymmGen r) x y ss'),
       MultisetExt (r.inv)⁺ (Multiset.ofList hseq'.elems) (Multiset.ofList hseq.elems)
     := by

@@ -306,7 +306,7 @@ def appears_finitely (n: ℕ):= ∃N, ∀m > N, f n ≠ f m
 def appears_finitely' (n: ℕ) := ∃N, f n = f N ∧ ∀m > N, f n ≠ f m
 
 open Classical in
-private lemma last_finite_appearance: appears_finitely f n → appears_finitely' f n := by
+lemma last_finite_appearance: appears_finitely f n → appears_finitely' f n := by
   rintro hla
   use Nat.find hla
   constructor
